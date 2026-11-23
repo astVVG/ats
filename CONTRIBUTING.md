@@ -112,7 +112,6 @@ El detalle de etapas y tags está en [docs/stages.md](docs/stages.md).
 | Frontend      | `npm run lint && npm run test && npm run build` |
 | Tipos de API  | `npm run api:types`                             |
 
-> Estos comandos estarán disponibles conforme se completen las tareas 0.2 y 0.5.
 
 ## 10. Estructura del monorepo
 
@@ -127,7 +126,7 @@ ats/
 
 ### Backend
 
-Organización por feature. Paquete base de Java: **por definir**.
+Organización por feature. Paquete base de Java: `io.github.astvvg.ats`.
 
 Features: `common`, `security`, `user`, `job`, `candidate`, `application`, `note`, `metrics`.
 
@@ -150,3 +149,54 @@ src/
 ## 11. Metodología de trabajo
 
 Una tarea es una rama y un PR pequeño.
+
+## 12. Herramientas locales
+
+Después de clonar el repositorio, instala las dependencias en la raíz y en `frontend/`:
+
+```bash
+make setup
+```
+
+Equivale a ejecutar `npm install` en la raíz y después en `frontend/`. La instalación de la raíz activa los hooks de git con husky.
+
+### Hooks de git
+
+| Hook         | Qué hace                                                                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pre-commit` | Ejecuta lint-staged sobre los archivos en staged: `eslint --fix` y `prettier --write` para ts, tsx, js y jsx de `frontend/`; `prettier --write` para json, css, md y html de `frontend/`; Spotless solo para los `.java` en staged de `backend/`. Los archivos corregidos se vuelven a agregar al commit. |
+| `commit-msg` | Valida el mensaje con commitlint según Conventional Commits.                                                                                                                                                              |
+
+Los hooks no requieren Docker ni el backend en ejecución.
+
+Reglas de commitlint:
+
+- Tipos válidos: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `build`, `ci`.
+- Alcances válidos: `api`, `web`, `db`, `infra`. El alcance es opcional, pero si aparece debe ser uno de estos.
+
+### Objetivos de make
+
+| Objetivo     | Descripción                                                     |
+| ------------ | --------------------------------------------------------------- |
+| `help`       | Lista los objetivos disponibles (objetivo por defecto).         |
+| `setup`      | Instala las herramientas de la raíz (hooks) y el frontend.      |
+| `db-up`      | Levanta el Postgres de desarrollo.                              |
+| `db-down`    | Detiene el Postgres de desarrollo sin borrar los datos.         |
+| `run-back`   | Ejecuta el backend con el perfil `dev`.                         |
+| `run-front`  | Ejecuta el servidor de desarrollo del frontend.                 |
+| `test`       | Ejecuta `test-back` y `test-front`.                             |
+| `test-back`  | `./mvnw -B verify` en `backend/` (requiere Docker).             |
+| `test-front` | `npm run lint && npm run test && npm run build` en `frontend/`. |
+| `lint`       | Lint y verificación de formato del frontend y del backend.      |
+| `format`     | Formatea el código del frontend y del backend.                  |
+| `api-types`  | Genera los tipos de la API (requiere el backend en ejecución).  |
+
+## 13. Integración continua
+
+El `Jenkinsfile` de la raíz define un pipeline declarativo que solo construye la rama `test`. Ejecuta en secuencia:
+
+1. **Tooling check:** verifica JDK 21 y Node 24, y muestra las versiones de npm y Docker.
+2. **Backend:** `./mvnw -B verify` y publicación de los resultados de JUnit.
+3. **Frontend:** `npm ci`, `npm run lint`, `npm run test` y `npm run build`.
+
+El nodo de Jenkins necesita JDK 21, Node 24 y Docker (las pruebas del backend usan Testcontainers). El pipeline no genera los tipos de la API ni hace deploy; el deploy llega en la Etapa 6 desde la rama `prod`.

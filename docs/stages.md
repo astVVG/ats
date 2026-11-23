@@ -2,8 +2,8 @@
 
 | Etapa | Nombre                   | Tag    | Estado    |
 | ----- | ------------------------ | ------ | --------- |
-| 0     | Setup                    | v0.1.0 | En curso  |
-| 1     | Auth                     | v0.2.0 | Pendiente |
+| 0     | Setup                    | v0.1.0 | Terminada |
+| 1     | Auth                     | v0.2.0 | En curso  |
 | 2     | Vacantes y candidatos    | v0.3.0 | Pendiente |
 | 3     | Postulaciones y Kanban   | v0.4.0 | Pendiente |
 | 4     | Notas y métricas         | v0.5.0 | Pendiente |
