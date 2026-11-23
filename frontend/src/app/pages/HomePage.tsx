@@ -1,3 +1,4 @@
+import { BackendStatus } from "@/shared/components/BackendStatus";
 import { Button } from "@/shared/ui/button";
 
 export function HomePage() {
@@ -6,6 +7,9 @@ export function HomePage() {
       <h1 className="text-3xl font-bold">Mini ATS</h1>
       <p className="text-muted-foreground">Gestión de vacantes y candidatos</p>
       <Button type="button">Comenzar</Button>
+      <div>
+        <BackendStatus />
+      </div>
     </section>
   );
 }
