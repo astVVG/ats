@@ -1,9 +1,12 @@
 package io.github.astvvg.ats.common;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSourceResolvable;
@@ -13,6 +16,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -75,6 +79,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 ex, validationProblem(errors), headers, HttpStatus.BAD_REQUEST, request);
     }
 
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        // Well-formed JSON with a value of the wrong type (e.g. an unknown enum constant).
+        if (ex.getCause() instanceof InvalidFormatException invalid) {
+            FieldViolation violation =
+                    new FieldViolation(jsonPath(invalid), invalidValueMessage(invalid));
+            return handleExceptionInternal(
+                    ex, validationProblem(List.of(violation)), headers, status, request);
+        }
+        return super.handleHttpMessageNotReadable(ex, headers, status, request);
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex) {
         List<FieldViolation> errors =
@@ -125,6 +145,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(body.getStatus())
                 .contentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .body(body);
+    }
+
+    private static String jsonPath(InvalidFormatException ex) {
+        return ex.getPath().stream()
+                .map(ref ->
+                        ref.getFieldName() != null
+                                ? ref.getFieldName()
+                                : "[" + ref.getIndex() + "]")
+                .collect(Collectors.joining("."));
+    }
+
+    private static String invalidValueMessage(InvalidFormatException ex) {
+        Class<?> target = ex.getTargetType();
+        if (target != null && target.isEnum()) {
+            return "must be one of "
+                    + Arrays.stream(target.getEnumConstants())
+                            .map(Object::toString)
+                            .collect(Collectors.joining(", "));
+        }
+        return "has an invalid value";
     }
 
     private static String leafName(Path path) {

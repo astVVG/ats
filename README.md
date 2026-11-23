@@ -30,7 +30,7 @@ Para preparar el entorno local (hooks de git y atajos de `make`), consulta [Herr
 
 ## Base de datos de desarrollo
 
-1. Copia `.env.example` a `.env` y asigna una contraseña en `DB_PASSWORD`.
+1. Copia `.env.example` a `.env` y asigna una contraseña en `DB_PASSWORD`. El `.env` también define `JWT_SECRET` (valor aleatorio de al menos 32 caracteres) y las variables `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NAME` del administrador inicial, que se crea al arrancar si no existe.
 2. Levanta PostgreSQL 16:
 
    ```bash
