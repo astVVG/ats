@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: ats-backend
+  profiles:
+    default: dev
+  # TEMPORARY: removed in task 1.2
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
