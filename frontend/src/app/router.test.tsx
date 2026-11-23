@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Providers } from "@/app/providers";
 import { routes } from "@/app/router";
+
+vi.mock("@/shared/api/health", () => ({
+  fetchHealth: vi.fn().mockResolvedValue({ status: "UP" }),
+}));
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });

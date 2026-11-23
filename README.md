@@ -59,6 +59,14 @@ npm run test
 npm run build
 ```
 
+Los tipos de la API se generan desde el OpenAPI del backend:
+
+```bash
+npm run api:types
+```
+
+Requiere el backend en ejecución en http://localhost:8080. El archivo generado (`src/shared/api/schema.d.ts`) se versiona: vuelve a ejecutar el comando y versiona el resultado cada vez que cambie la API.
+
 ## Documentación
 
 - [Guía de contribución](CONTRIBUTING.md)
