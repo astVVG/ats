@@ -1,12 +1,16 @@
 package io.github.astvvg.ats.common;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class OpenApiConfig {
+
+    public static final String BEARER_AUTH = "bearerAuth";
 
     @Bean
     OpenAPI atsOpenApi() {
@@ -16,6 +20,14 @@ public class OpenApiConfig {
                                 .title("Mini ATS API")
                                 .version("v1")
                                 .description(
-                                        "REST API for managing job openings, candidates and the hiring pipeline."));
+                                        "REST API for managing job openings, candidates and the hiring pipeline."))
+                .components(
+                        new Components()
+                                .addSecuritySchemes(
+                                        BEARER_AUTH,
+                                        new SecurityScheme()
+                                                .type(SecurityScheme.Type.HTTP)
+                                                .scheme("bearer")
+                                                .bearerFormat("JWT")));
     }
 }

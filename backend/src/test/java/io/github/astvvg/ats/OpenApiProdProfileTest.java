@@ -10,12 +10,19 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("prod")
 @Import(TestcontainersConfiguration.class)
+@TestPropertySource(
+        properties = {
+            "app.jwt.secret=test-only-jwt-secret-not-for-real-use-0123456789",
+            "app.admin.email=",
+            "app.admin.password="
+        })
 class OpenApiProdProfileTest {
 
     @Autowired private MockMvc mockMvc;

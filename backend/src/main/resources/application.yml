@@ -3,10 +3,6 @@ spring:
     name: ats-backend
   profiles:
     default: dev
-  # TEMPORARY: removed in task 1.2
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,3 +13,12 @@ management:
     web:
       exposure:
         include: health
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:}
+    expiration: PT2H
+  admin:
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}
+    name: ${ADMIN_NAME:Administrator}
