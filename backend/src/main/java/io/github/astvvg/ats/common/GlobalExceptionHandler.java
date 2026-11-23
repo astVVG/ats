@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @RestControllerAdvice
@@ -35,6 +36,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     static final String VALIDATION_TITLE = "Validation failed";
     static final String VALIDATION_DETAIL = "One or more fields are invalid";
+    static final String UPLOAD_TOO_LARGE_DETAIL = "The upload exceeds the maximum size of 5 MB";
 
     public record FieldViolation(String field, String message) {}
 
@@ -93,6 +95,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                     ex, validationProblem(List.of(violation)), headers, status, request);
         }
         return super.handleHttpMessageNotReadable(ex, headers, status, request);
+    }
+
+    // Spring answers 413 by default; uploads over the limit are a client error like any other.
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        ProblemDetail body =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, UPLOAD_TOO_LARGE_DETAIL);
+        body.setTitle("Bad Request");
+        return handleExceptionInternal(ex, body, headers, HttpStatus.BAD_REQUEST, request);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
