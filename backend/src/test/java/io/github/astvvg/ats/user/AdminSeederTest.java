@@ -118,4 +118,21 @@ class AdminSeederTest {
                                 .hasMessageContaining("ADMIN_PASSWORD")
                                 .hasMessageNotContaining("short1"));
     }
+
+    @Test
+    void passwordOverBcryptByteLimitFailsStartup() {
+        // 40 characters, 80 bytes in UTF-8.
+        String longPassword = "á".repeat(40);
+        new ApplicationContextRunner()
+                .withUserConfiguration(PropertiesConfig.class)
+                .withPropertyValues(
+                        "app.admin.email=bytes@example.com", "app.admin.password=" + longPassword)
+                .run(context ->
+                        assertThat(context.getStartupFailure())
+                                .isNotNull()
+                                .rootCause()
+                                .hasMessageContaining("ADMIN_PASSWORD")
+                                .hasMessageContaining("72 bytes")
+                                .hasMessageNotContaining(longPassword));
+    }
 }

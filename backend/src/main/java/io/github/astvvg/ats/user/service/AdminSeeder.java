@@ -1,5 +1,6 @@
 package io.github.astvvg.ats.user.service;
 
+import io.github.astvvg.ats.common.validation.MaxUtf8Bytes;
 import io.github.astvvg.ats.user.domain.Role;
 import io.github.astvvg.ats.user.domain.User;
 import io.github.astvvg.ats.user.repository.UserRepository;
@@ -65,6 +66,14 @@ public class AdminSeeder implements ApplicationRunner {
         @AssertTrue(message = "app.admin.password (ADMIN_PASSWORD) must have at least 8 characters")
         public boolean isPasswordLengthValid() {
             return !StringUtils.hasText(password) || password.length() >= MIN_PASSWORD_LENGTH;
+        }
+
+        @AssertTrue(
+                message =
+                        "app.admin.password (ADMIN_PASSWORD) must be at most 72 bytes in UTF-8"
+                                + " (BCrypt limit)")
+        public boolean isPasswordWithinBcryptLimit() {
+            return MaxUtf8Bytes.Validator.fits(password, MaxUtf8Bytes.BCRYPT_MAX_BYTES);
         }
 
         boolean isConfigured() {
