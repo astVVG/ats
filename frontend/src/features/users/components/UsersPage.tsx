@@ -18,8 +18,8 @@ const PAGE_SIZE = 10;
 
 const dateFormat = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" });
 
-function formatDate(value: string | undefined) {
-  return value ? dateFormat.format(new Date(value)) : "—";
+function formatDate(value: string) {
+  return dateFormat.format(new Date(value));
 }
 
 export function UsersPage() {
@@ -28,9 +28,6 @@ export function UsersPage() {
     page,
     size: PAGE_SIZE,
   });
-
-  const users = data?.content ?? [];
-  const totalPages = Math.max(data?.totalPages ?? 1, 1);
 
   return (
     <section className="space-y-6">
@@ -58,7 +55,7 @@ export function UsersPage() {
             </Button>
           </AlertDescription>
         </Alert>
-      ) : users.length === 0 ? (
+      ) : data.content.length === 0 ? (
         <p className="text-muted-foreground">No hay usuarios</p>
       ) : (
         <>
@@ -73,11 +70,11 @@ export function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id ?? user.email}>
+              {data.content.map((user) => (
+                <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.role && ROLE_LABELS[user.role]}</TableCell>
+                  <TableCell>{ROLE_LABELS[user.role]}</TableCell>
                   <TableCell>
                     {user.active ? (
                       <Badge>Activo</Badge>
@@ -92,7 +89,7 @@ export function UsersPage() {
           </Table>
           <div className="flex items-center justify-end gap-4">
             <span className="text-sm text-muted-foreground">
-              Página {page + 1} de {totalPages}
+              Página {page + 1} de {Math.max(data.totalPages, 1)}
             </span>
             <Button
               type="button"
@@ -107,7 +104,7 @@ export function UsersPage() {
               type="button"
               variant="outline"
               size="sm"
-              disabled={page + 1 >= totalPages}
+              disabled={page + 1 >= data.totalPages}
               onClick={() => setPage((current) => current + 1)}
             >
               Siguiente

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +8,12 @@ import { fetchMe, login } from "@/features/auth/api";
 import { useSessionStore } from "@/features/auth/store";
 import type { User } from "@/features/auth/types";
 import { listUsers } from "@/features/users/api";
-import { adminUser, createTestQueryClient, recruiterUser } from "@/test/utils";
+import {
+  adminUser,
+  createTestQueryClient,
+  loginResponse,
+  recruiterUser,
+} from "@/test/utils";
 
 vi.mock("@/shared/api/health", () => ({
   fetchHealth: vi.fn().mockResolvedValue({ status: "UP" }),
@@ -90,8 +95,41 @@ describe("app router", () => {
     expect(router.state.location.pathname).toBe("/login");
   });
 
+  it.each([
+    "/jobs",
+    "/jobs/new",
+    "/jobs/5/edit",
+    "/candidates",
+    "/candidates/new",
+    "/candidates/5",
+    "/candidates/5/edit",
+  ])("redirects %s to /login without a session", async (path) => {
+    const router = renderAt(path);
+
+    expect(
+      await screen.findByRole("heading", { name: "Iniciar sesión" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/login");
+  });
+
+  it.each([adminUser, recruiterUser])(
+    "shows Vacantes and Candidatos to $role",
+    async (user) => {
+      signIn(user);
+      renderAt("/");
+
+      const nav = await screen.findByRole("navigation", { name: "Principal" });
+      expect(
+        within(nav).getByRole("link", { name: "Vacantes" }),
+      ).toHaveAttribute("href", "/jobs");
+      expect(
+        within(nav).getByRole("link", { name: "Candidatos" }),
+      ).toHaveAttribute("href", "/candidates");
+    },
+  );
+
   it("goes back to the requested page after logging in", async () => {
-    vi.mocked(login).mockResolvedValue({ accessToken: "token-123" });
+    vi.mocked(login).mockResolvedValue(loginResponse("token-123"));
     vi.mocked(fetchMe).mockResolvedValue(adminUser);
     vi.mocked(listUsers).mockResolvedValue(emptyPage);
     const router = renderAt("/users");
@@ -165,8 +203,8 @@ describe("app router", () => {
       email: "bea@example.com",
     };
     vi.mocked(login)
-      .mockResolvedValueOnce({ accessToken: "token-ada" })
-      .mockResolvedValueOnce({ accessToken: "token-bea" });
+      .mockResolvedValueOnce(loginResponse("token-ada"))
+      .mockResolvedValueOnce(loginResponse("token-bea"));
     vi.mocked(fetchMe)
       .mockResolvedValueOnce(adminUser)
       .mockResolvedValueOnce(otherAdmin);
