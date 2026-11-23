@@ -25,7 +25,7 @@ function page(content: UserPage["content"], pageNumber = 0, totalPages = 1) {
     content,
     page: pageNumber,
     size: 10,
-    totalElements: content?.length ?? 0,
+    totalElements: content.length,
     totalPages,
   } satisfies UserPage;
 }
@@ -111,7 +111,7 @@ describe("UsersPage", () => {
     expect(
       admin.getByText(
         new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(
-          new Date(adminUser.createdAt ?? ""),
+          new Date(adminUser.createdAt),
         ),
       ),
     ).toBeInTheDocument();

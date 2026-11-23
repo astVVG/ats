@@ -6,7 +6,12 @@ import { Providers } from "@/app/providers";
 import { fetchMe, login } from "@/features/auth/api";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { useSessionStore } from "@/features/auth/store";
-import { adminUser, createTestQueryClient, httpError } from "@/test/utils";
+import {
+  adminUser,
+  createTestQueryClient,
+  httpError,
+  loginResponse,
+} from "@/test/utils";
 
 vi.mock("@/features/auth/api", () => ({
   login: vi.fn(),
@@ -93,7 +98,7 @@ describe("LoginPage", () => {
   });
 
   it("returns to the page requested before logging in", async () => {
-    loginMock.mockResolvedValue({ accessToken: "token-123" });
+    loginMock.mockResolvedValue(loginResponse("token-123"));
     fetchMeMock.mockResolvedValue(adminUser);
     renderLogin("/users");
 
