@@ -1,3 +1,11 @@
+spring:
+  config:
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME:ats}
+    username: ${DB_USER:ats}
+    password: ${DB_PASSWORD}
+
 logging:
   level:
     io.github.astvvg.ats: DEBUG

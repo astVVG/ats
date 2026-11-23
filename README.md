@@ -26,6 +26,23 @@ ats/
 
 Esta sección se completará conforme avancen las etapas del proyecto.
 
+## Base de datos de desarrollo
+
+1. Copia `.env.example` a `.env` y asigna una contraseña en `DB_PASSWORD`.
+2. Levanta PostgreSQL 16:
+
+   ```bash
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+
+3. Desde `backend/`, ejecuta el backend:
+
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+
+Las pruebas del backend usan Testcontainers, por lo que requieren Docker en ejecución.
+
 ## Documentación
 
 - [Guía de contribución](CONTRIBUTING.md)
