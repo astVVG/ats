@@ -26,6 +26,8 @@ ats/
 
 Esta sección se completará conforme avancen las etapas del proyecto.
 
+Para preparar el entorno local (hooks de git y atajos de `make`), consulta [Herramientas locales](CONTRIBUTING.md#12-herramientas-locales).
+
 ## Base de datos de desarrollo
 
 1. Copia `.env.example` a `.env` y asigna una contraseña en `DB_PASSWORD`.
