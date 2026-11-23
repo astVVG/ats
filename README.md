@@ -43,6 +43,22 @@ Esta sección se completará conforme avancen las etapas del proyecto.
 
 Las pruebas del backend usan Testcontainers, por lo que requieren Docker en ejecución.
 
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+La aplicación queda disponible en http://localhost:5173. Comandos de verificación:
+
+```bash
+npm run lint
+npm run test
+npm run build
+```
+
 ## Documentación
 
 - [Guía de contribución](CONTRIBUTING.md)
