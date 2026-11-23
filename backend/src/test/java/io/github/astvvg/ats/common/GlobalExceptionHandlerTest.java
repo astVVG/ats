@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 class GlobalExceptionHandlerTest {
 
@@ -113,6 +114,16 @@ class GlobalExceptionHandlerTest {
                 .andExpect(content().string(not(containsString("secret"))));
     }
 
+    @Test
+    void uploadOverMultipartLimitIsBadRequest() throws Exception {
+        mockMvc.perform(get("/test/too-large"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(
+                        jsonPath("$.detail").value("The upload exceeds the maximum size of 5 MB"));
+    }
+
     record SampleRequest(@NotBlank String name, @Email String email) {}
 
     @RestController
@@ -142,6 +153,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/conflict")
         void conflict() {
             throw new BusinessConflictException("Email already registered");
+        }
+
+        @GetMapping("/too-large")
+        void tooLarge() {
+            throw new MaxUploadSizeExceededException(5L * 1024 * 1024);
         }
 
         @GetMapping("/unexpected")

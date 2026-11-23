@@ -3,6 +3,10 @@ spring:
     name: ats-backend
   profiles:
     default: dev
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   jpa:
     hibernate:
       ddl-auto: validate
@@ -27,3 +31,6 @@ app:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
     name: ${ADMIN_NAME:Administrator}
+  uploads:
+    # Resumes are stored under {dir}/resumes/{candidateId}/.
+    dir: ${UPLOADS_DIR:./uploads}

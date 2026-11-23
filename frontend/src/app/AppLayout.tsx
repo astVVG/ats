@@ -28,6 +28,12 @@ export function AppLayout() {
             <NavLink to="/" end className={navLinkClass}>
               Inicio
             </NavLink>
+            <NavLink to="/jobs" className={navLinkClass}>
+              Vacantes
+            </NavLink>
+            <NavLink to="/candidates" className={navLinkClass}>
+              Candidatos
+            </NavLink>
             {role === "ADMIN" && (
               <NavLink to="/users" className={navLinkClass}>
                 Usuarios
