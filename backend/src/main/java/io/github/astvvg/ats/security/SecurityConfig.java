@@ -43,6 +43,9 @@ public class SecurityConfig {
                                         "/swagger-ui/**",
                                         "/swagger-ui.html")
                                 .permitAll()
+                                // Checked before the body is read, so non-admins never see a 400.
+                                .requestMatchers("/api/users/**")
+                                .hasRole("ADMIN")
                                 .anyRequest()
                                 .authenticated())
                 .exceptionHandling(exceptions ->

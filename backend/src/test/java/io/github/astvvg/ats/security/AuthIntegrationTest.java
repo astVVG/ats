@@ -106,6 +106,43 @@ class AuthIntegrationTest {
     }
 
     @Test
+    void passwordOverBcryptByteLimitIsRejectedAsBadCredentials() throws Exception {
+        User user = createUser(Role.RECRUITER, true);
+        // 40 characters, 80 bytes in UTF-8.
+        String longPassword = "á".repeat(40);
+
+        MvcResult known = login(user.getEmail(), longPassword);
+        MvcResult unknown = login("nobody-" + UUID.randomUUID() + "@example.com", longPassword);
+
+        assertThat(known.getResponse().getStatus()).isEqualTo(401);
+        assertThat(unknown.getResponse().getStatus()).isEqualTo(401);
+        assertThat(known.getResponse().getContentAsString())
+                .isEqualTo(
+                        login(user.getEmail(), "Wrong-password-1")
+                                .getResponse()
+                                .getContentAsString());
+    }
+
+    @Test
+    void loginPasswordLongerThan128CharactersIsBadRequest() throws Exception {
+        User user = createUser(Role.RECRUITER, true);
+
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                Map.of(
+                                                        "email",
+                                                        user.getEmail(),
+                                                        "password",
+                                                        "a".repeat(129)))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors[*].field", hasItem("password")));
+    }
+
+    @Test
     void failedLoginsAreIndistinguishable() throws Exception {
         User active = createUser(Role.RECRUITER, true);
         User inactive = createUser(Role.RECRUITER, false);
