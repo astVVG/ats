@@ -35,12 +35,15 @@ class OpenApiSchemaTest {
     @Autowired private ObjectMapper objectMapper;
 
     private JsonNode schemas;
+    private JsonNode paths;
 
     @BeforeAll
     void loadSchemas() throws Exception {
         String json =
                 mockMvc.perform(get("/v3/api-docs")).andReturn().getResponse().getContentAsString();
-        schemas = objectMapper.readTree(json).path("components").path("schemas");
+        JsonNode docs = objectMapper.readTree(json);
+        schemas = docs.path("components").path("schemas");
+        paths = docs.path("paths");
     }
 
     static Stream<Arguments> responseSchemas() {
@@ -63,7 +66,55 @@ class OpenApiSchemaTest {
                         "CandidateResponse",
                         Set.of("id", "fullName", "email", "hasResume", "createdAt", "updatedAt"),
                         Set.of("phone", "source")),
-                Arguments.of("PageResponseCandidateResponse", page, Set.of()));
+                Arguments.of("PageResponseCandidateResponse", page, Set.of()),
+                Arguments.of(
+                        "ApplicationResponse",
+                        Set.of(
+                                "id",
+                                "jobId",
+                                "candidateId",
+                                "stage",
+                                "position",
+                                "createdAt",
+                                "updatedAt"),
+                        Set.of("rating")),
+                Arguments.of("BoardResponse", Set.of("job", "columns"), Set.of()),
+                Arguments.of("BoardJobResponse", Set.of("id", "title", "status"), Set.of()),
+                Arguments.of("BoardColumnResponse", Set.of("stage", "applications"), Set.of()),
+                Arguments.of(
+                        "BoardCardResponse",
+                        Set.of("id", "position", "candidate", "updatedAt"),
+                        Set.of("rating")),
+                Arguments.of(
+                        "BoardCandidateResponse", Set.of("id", "fullName", "email"), Set.of()));
+    }
+
+    static Stream<Arguments> newOperations() {
+        return Stream.of(
+                Arguments.of("/api/applications", "post", "201", "ApplicationResponse"),
+                Arguments.of("/api/jobs/{id}/board", "get", "200", "BoardResponse"));
+    }
+
+    @ParameterizedTest(name = "{1} {0}")
+    @MethodSource("newOperations")
+    void operationIsDocumentedWithItsResponseSchema(
+            String path, String method, String status, String schema) {
+        JsonNode operation = paths.path(path).path(method);
+        assertThat(operation.isMissingNode()).as("%s %s documented", method, path).isFalse();
+        assertThat(operation.path("security").isEmpty())
+                .as("%s %s security", method, path)
+                .isFalse();
+        assertThat(operation.path("responses").path("401").isMissingNode()).isFalse();
+        assertThat(
+                        operation
+                                .path("responses")
+                                .path(status)
+                                .path("content")
+                                .path("*/*")
+                                .path("schema")
+                                .path("$ref")
+                                .asText())
+                .isEqualTo("#/components/schemas/" + schema);
     }
 
     @ParameterizedTest(name = "{0}")

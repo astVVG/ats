@@ -98,6 +98,7 @@ public class CandidateController {
     @Operation(summary = "Delete a candidate and its resume")
     @ApiResponse(responseCode = "204", description = "Candidate deleted")
     @ApiResponse(responseCode = "404", description = "Candidate not found")
+    @ApiResponse(responseCode = "409", description = "The candidate has applications")
     public void delete(@PathVariable Long id) {
         candidateService.delete(id);
     }
