@@ -74,6 +74,11 @@ public class Application {
         updatedAt = now();
     }
 
+    public void moveTo(Stage stage, int position) {
+        this.stage = stage;
+        this.position = position;
+    }
+
     public Long getId() {
         return id;
     }

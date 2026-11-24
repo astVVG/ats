@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -92,7 +93,40 @@ class OpenApiSchemaTest {
     static Stream<Arguments> newOperations() {
         return Stream.of(
                 Arguments.of("/api/applications", "post", "201", "ApplicationResponse"),
-                Arguments.of("/api/jobs/{id}/board", "get", "200", "BoardResponse"));
+                Arguments.of("/api/jobs/{id}/board", "get", "200", "BoardResponse"),
+                Arguments.of("/api/applications/{id}/move", "patch", "200", "ApplicationResponse"));
+    }
+
+    @Test
+    void moveRequestIsDocumented() {
+        JsonNode schema = schemas.path("MoveApplicationRequest");
+        assertThat(schema.isMissingNode()).isFalse();
+
+        Set<String> properties = new HashSet<>();
+        schema.path("properties").fieldNames().forEachRemaining(properties::add);
+        Set<String> required = new HashSet<>();
+        schema.path("required").forEach(field -> required.add(field.asText()));
+        List<String> stages = new ArrayList<>();
+        schema.path("properties").path("stage").path("enum").forEach(s -> stages.add(s.asText()));
+
+        assertThat(properties).containsExactlyInAnyOrder("stage", "position");
+        assertThat(required).containsExactlyInAnyOrder("stage", "position");
+        assertThat(stages).containsExactly("APPLIED", "INTERVIEW", "OFFER", "HIRED", "REJECTED");
+        assertThat(schema.path("properties").path("position").path("minimum").asInt()).isZero();
+
+        JsonNode operation = paths.path("/api/applications/{id}/move").path("patch");
+        assertThat(
+                        operation
+                                .path("requestBody")
+                                .path("content")
+                                .path("application/json")
+                                .path("schema")
+                                .path("$ref")
+                                .asText())
+                .isEqualTo("#/components/schemas/MoveApplicationRequest");
+        Set<String> statuses = new HashSet<>();
+        operation.path("responses").fieldNames().forEachRemaining(statuses::add);
+        assertThat(statuses).containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409");
     }
 
     @ParameterizedTest(name = "{1} {0}")
