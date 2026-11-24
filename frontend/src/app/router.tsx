@@ -14,6 +14,20 @@ import { EditJobPage } from "@/features/jobs/components/EditJobPage";
 import { JobsPage } from "@/features/jobs/components/JobsPage";
 import { UsersPage } from "@/features/users/components/UsersPage";
 
+// Only in development; the production build drops the page and its import.
+const devRoutes: RouteObject[] = import.meta.env.DEV
+  ? [
+      {
+        path: "dev/theme",
+        lazy: async () => {
+          const { ThemePreviewPage } =
+            await import("@/app/pages/ThemePreviewPage");
+          return { Component: ThemePreviewPage };
+        },
+      },
+    ]
+  : [];
+
 export const routes: RouteObject[] = [
   { path: "/login", element: <LoginPage /> },
   {
@@ -35,6 +49,7 @@ export const routes: RouteObject[] = [
             element: <RequireRole role="ADMIN" />,
             children: [{ path: "users", element: <UsersPage /> }],
           },
+          ...devRoutes,
           { path: "*", element: <NotFoundPage /> },
         ],
       },

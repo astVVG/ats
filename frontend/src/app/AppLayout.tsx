@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useOutletContext } from "react-router";
 import type { AuthOutletContext } from "@/features/auth/components/RequireAuth";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLE_LABELS } from "@/features/auth/types";
+import { ThemeToggle } from "@/shared/components/ThemeToggle";
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -41,6 +42,7 @@ export function AppLayout() {
             )}
           </nav>
           <div className="ml-auto flex items-center gap-3">
+            <ThemeToggle />
             <span className="text-sm">{user?.name}</span>
             {role && <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>}
             <Button type="button" variant="outline" size="sm" onClick={logout}>

@@ -10,7 +10,7 @@ export function BackendStatus() {
         dot: "bg-muted-foreground animate-pulse",
       }
     : !isError && data.status === "UP"
-      ? { label: "Backend disponible", dot: "bg-emerald-500" }
+      ? { label: "Backend disponible", dot: "bg-success" }
       : { label: "Backend no disponible", dot: "bg-destructive" };
 
   return (
