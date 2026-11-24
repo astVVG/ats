@@ -1,5 +1,6 @@
 package io.github.astvvg.ats.candidate.service;
 
+import io.github.astvvg.ats.application.repository.ApplicationRepository;
 import io.github.astvvg.ats.candidate.domain.Candidate;
 import io.github.astvvg.ats.candidate.dto.CandidateRequest;
 import io.github.astvvg.ats.candidate.dto.CandidateResponse;
@@ -34,19 +35,24 @@ public class CandidateService {
     static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
     public static final long MAX_RESUME_BYTES = 5L * 1024 * 1024;
     private static final byte[] PDF_SIGNATURE = "%PDF-".getBytes(StandardCharsets.US_ASCII);
+    static final String HAS_APPLICATIONS = "Candidate has applications and cannot be deleted";
     private static final String EMAIL_CONSTRAINT = "uq_candidates_email";
+    private static final String APPLICATION_CANDIDATE_CONSTRAINT = "fk_applications_candidate";
 
     private final CandidateRepository candidateRepository;
     private final CandidateMapper candidateMapper;
     private final ResumeStorage resumeStorage;
+    private final ApplicationRepository applicationRepository;
 
     public CandidateService(
             CandidateRepository candidateRepository,
             CandidateMapper candidateMapper,
-            ResumeStorage resumeStorage) {
+            ResumeStorage resumeStorage,
+            ApplicationRepository applicationRepository) {
         this.candidateRepository = candidateRepository;
         this.candidateMapper = candidateMapper;
         this.resumeStorage = resumeStorage;
+        this.applicationRepository = applicationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -90,11 +96,22 @@ public class CandidateService {
         return candidateMapper.toResponse(saveAndFlush(candidate));
     }
 
-    // Applications do not exist yet; the "has applications" check arrives with Stage 3.
+    /** Candidates with applications are kept so the hiring history stays intact. */
     public void delete(Long id) {
         Candidate candidate = find(id);
+        if (applicationRepository.existsByCandidateId(id)) {
+            throw new BusinessConflictException(HAS_APPLICATIONS);
+        }
         candidateRepository.delete(candidate);
-        candidateRepository.flush();
+        try {
+            candidateRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            // An application may be created between the check and the delete.
+            if (violates(ex, APPLICATION_CANDIDATE_CONSTRAINT)) {
+                throw new BusinessConflictException(HAS_APPLICATIONS);
+            }
+            throw ex;
+        }
         resumeStorage.deleteCandidateFolder(id);
     }
 
@@ -160,7 +177,7 @@ public class CandidateService {
             return candidateRepository.saveAndFlush(candidate);
         } catch (DataIntegrityViolationException ex) {
             // A concurrent request may take the same email between the check and the write.
-            if (violatesEmailConstraint(ex)) {
+            if (violates(ex, EMAIL_CONSTRAINT)) {
                 throw new BusinessConflictException(EMAIL_TAKEN);
             }
             throw ex;
@@ -173,10 +190,10 @@ public class CandidateService {
                 .orElseThrow(() -> new ResourceNotFoundException("Candidate " + id + " not found"));
     }
 
-    private static boolean violatesEmailConstraint(Throwable ex) {
+    private static boolean violates(Throwable ex, String constraint) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
             if (cause instanceof ConstraintViolationException violation
-                    && EMAIL_CONSTRAINT.equalsIgnoreCase(violation.getConstraintName())) {
+                    && constraint.equalsIgnoreCase(violation.getConstraintName())) {
                 return true;
             }
         }
