@@ -2,6 +2,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { createQueryClient } from "@/app/queryClient";
 import { connectApiClientToSession } from "@/features/auth/session";
+import { ThemeProvider } from "@/shared/theme/ThemeProvider";
 import { Toaster } from "@/shared/ui/sonner";
 
 type ProvidersProps = {
@@ -17,9 +18,11 @@ export function Providers({ children, queryClient }: ProvidersProps) {
     return instance;
   });
   return (
-    <QueryClientProvider client={client}>
-      {children}
-      <Toaster richColors position="top-right" />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={client}>
+        {children}
+        <Toaster richColors position="top-right" />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

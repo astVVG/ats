@@ -139,6 +139,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a candidate to a job
+         * @description The application starts in APPLIED at the end of that column and its first stage history entry is recorded.
+         */
+        post: operations["create_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{id}": {
         parameters: {
             query?: never;
@@ -173,6 +193,26 @@ export interface paths {
         patch: operations["updateStatus_1"];
         trace?: never;
     };
+    "/api/applications/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Move an application on the board
+         * @description Changes its stage, its position inside the column, or both, and reindexes the affected columns. A stage change records a stage history entry. Moving to the current stage and position changes nothing. Only an ADMIN can move an application out of HIRED.
+         */
+        patch: operations["move"];
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -182,6 +222,26 @@ export interface paths {
         };
         /** Get the authenticated user */
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{id}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the board of a job
+         * @description Always five columns in the order APPLIED, INTERVIEW, OFFER, HIRED, REJECTED, each with its applications ordered by position. Closed jobs are included.
+         */
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -293,12 +353,58 @@ export interface components {
              */
             expiresIn: number;
         };
+        CreateApplicationRequest: {
+            /**
+             * Format: int64
+             * @example 1
+             */
+            jobId: number;
+            /**
+             * Format: int64
+             * @example 1
+             */
+            candidateId: number;
+        };
+        ApplicationResponse: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            jobId: number;
+            /** Format: int64 */
+            candidateId: number;
+            /** @enum {string} */
+            stage: "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED";
+            /**
+             * Format: int32
+             * @description Zero-based order inside its stage column
+             */
+            position: number;
+            /** Format: int32 */
+            rating?: number | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         UpdateUserStatusRequest: {
             active: boolean;
         };
         JobStatusRequest: {
             /** @enum {string} */
             status: "OPEN" | "CLOSED";
+        };
+        MoveApplicationRequest: {
+            /**
+             * @example INTERVIEW
+             * @enum {string}
+             */
+            stage: "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED";
+            /**
+             * Format: int32
+             * @description Zero-based target position. Within the same stage: 0 to n-1; to another stage: 0 to n, where n is the number of applications in the target stage and n means the end.
+             * @example 0
+             */
+            position: number;
         };
         PageResponseUserResponse: {
             content: components["schemas"]["UserResponse"][];
@@ -321,6 +427,41 @@ export interface components {
             totalElements: number;
             /** Format: int32 */
             totalPages: number;
+        };
+        BoardCandidateResponse: {
+            /** Format: int64 */
+            id: number;
+            fullName: string;
+            email: string;
+        };
+        BoardCardResponse: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            position: number;
+            /** Format: int32 */
+            rating?: number | null;
+            candidate: components["schemas"]["BoardCandidateResponse"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BoardColumnResponse: {
+            /** @enum {string} */
+            stage: "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED";
+            /** @description Ordered by position, ascending */
+            applications: components["schemas"]["BoardCardResponse"][];
+        };
+        BoardJobResponse: {
+            /** Format: int64 */
+            id: number;
+            title: string;
+            /** @enum {string} */
+            status: "OPEN" | "CLOSED";
+        };
+        BoardResponse: {
+            job: components["schemas"]["BoardJobResponse"];
+            /** @description One column per stage, always all of them and in stage order */
+            columns: components["schemas"]["BoardColumnResponse"][];
         };
         PageResponseCandidateResponse: {
             content: components["schemas"]["CandidateResponse"][];
@@ -564,6 +705,13 @@ export interface operations {
             };
             /** @description Candidate not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The candidate has applications */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1011,6 +1159,66 @@ export interface operations {
             };
         };
     };
+    create_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description Application created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Invalid request body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Job or candidate not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description The job is closed or the candidate already applied to it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+        };
+    };
     updateStatus: {
         parameters: {
             query?: never;
@@ -1135,6 +1343,77 @@ export interface operations {
             };
         };
     };
+    move: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description Application moved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Invalid request body or position outside the allowed range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description A RECRUITER tried to move the application out of HIRED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Application not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description The job is closed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+        };
+    };
     me: {
         parameters: {
             query?: never;
@@ -1160,6 +1439,46 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Board of the job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BoardResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BoardResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BoardResponse"];
                 };
             };
         };

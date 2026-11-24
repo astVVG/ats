@@ -86,6 +86,26 @@ describe("app router", () => {
     ).toHaveAttribute("href", "/");
   });
 
+  it("renders the theme preview at /dev/theme in development", async () => {
+    signIn(recruiterUser);
+    renderAt("/dev/theme");
+
+    expect(
+      await screen.findByRole("heading", { name: "Vista previa del tema" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("group", { name: "Tema" })).toHaveLength(2);
+    expect(screen.getAllByText("Contratado").length).toBeGreaterThan(0);
+  });
+
+  it("redirects /dev/theme to /login without a session", async () => {
+    const router = renderAt("/dev/theme");
+
+    expect(
+      await screen.findByRole("heading", { name: "Iniciar sesión" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/login");
+  });
+
   it("redirects to /login without a session", async () => {
     const router = renderAt("/users");
 
