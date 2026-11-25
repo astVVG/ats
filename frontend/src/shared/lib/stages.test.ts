@@ -3,6 +3,7 @@ import {
   STAGE_ACCENT_BORDER_CLASSES,
   STAGE_BADGE_CLASSES,
   STAGE_DOT_CLASSES,
+  STAGE_DROP_HIGHLIGHT_CLASSES,
   STAGE_LABELS,
   STAGES,
 } from "@/shared/lib/stages";
@@ -11,6 +12,7 @@ const CLASS_MAPS = {
   STAGE_BADGE_CLASSES,
   STAGE_DOT_CLASSES,
   STAGE_ACCENT_BORDER_CLASSES,
+  STAGE_DROP_HIGHLIGHT_CLASSES,
 };
 
 describe("stages", () => {
@@ -53,5 +55,10 @@ describe("stages", () => {
     ]);
     expect(STAGE_DOT_CLASSES[stage]).toBe(`bg-${token}`);
     expect(STAGE_ACCENT_BORDER_CLASSES[stage]).toBe(`border-t-${token}`);
+    expect(STAGE_DROP_HIGHLIGHT_CLASSES[stage].split(" ")).toEqual([
+      `bg-${token}-soft`,
+      "ring-2",
+      `ring-${token}`,
+    ]);
   });
 });

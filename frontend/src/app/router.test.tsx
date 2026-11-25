@@ -119,6 +119,7 @@ describe("app router", () => {
     "/jobs",
     "/jobs/new",
     "/jobs/5/edit",
+    "/jobs/5/board",
     "/candidates",
     "/candidates/new",
     "/candidates/5",

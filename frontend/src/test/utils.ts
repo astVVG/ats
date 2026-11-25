@@ -7,8 +7,10 @@ import { Providers } from "@/app/providers";
 import { routes } from "@/app/router";
 import { useSessionStore } from "@/features/auth/store";
 import type { LoginResponse, User } from "@/features/auth/types";
+import type { Board, BoardCard } from "@/features/board/types";
 import type { Candidate } from "@/features/candidates/types";
 import type { Job } from "@/features/jobs/types";
+import { STAGES, type Stage } from "@/shared/lib/stages";
 
 /** Query client without retries, so error states show up immediately. */
 export function createTestQueryClient() {
@@ -98,6 +100,45 @@ export function buildJob(overrides: Partial<Job> = {}): Job {
     createdAt: "2026-03-01T10:00:00Z",
     updatedAt: "2026-03-01T10:00:00Z",
     ...overrides,
+  };
+}
+
+export function buildBoardCard(overrides: Partial<BoardCard> = {}): BoardCard {
+  const id = overrides.id ?? 100;
+  return {
+    id,
+    position: 0,
+    rating: null,
+    candidate: {
+      id: id + 1000,
+      fullName: `Candidato ${id}`,
+      email: `candidato${id}@example.com`,
+    },
+    updatedAt: "2026-04-10T10:00:00Z",
+    ...overrides,
+  };
+}
+
+/**
+ * A board with all five columns; `cards` fills some of them and positions
+ * follow the order given.
+ */
+export function buildBoard({
+  job = {},
+  cards = {},
+}: {
+  job?: Partial<Board["job"]>;
+  cards?: Partial<Record<Stage, BoardCard[]>>;
+} = {}): Board {
+  return {
+    job: { id: 10, title: "Desarrollador backend", status: "OPEN", ...job },
+    columns: STAGES.map((stage) => ({
+      stage,
+      applications: (cards[stage] ?? []).map((card, position) => ({
+        ...card,
+        position,
+      })),
+    })),
   };
 }
 
