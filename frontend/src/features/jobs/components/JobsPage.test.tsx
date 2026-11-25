@@ -134,6 +134,14 @@ describe("JobsPage", () => {
     expect(closed.getByText("Cerrada")).toBeInTheDocument();
     expect(closed.getByText("—")).toBeInTheDocument();
     expect(closed.getByRole("link", { name: "Editar" })).toBeInTheDocument();
+    expect(open.getByRole("link", { name: "Ver tablero" })).toHaveAttribute(
+      "href",
+      "/jobs/10/board",
+    );
+    expect(closed.getByRole("link", { name: "Ver tablero" })).toHaveAttribute(
+      "href",
+      "/jobs/11/board",
+    );
     expect(
       closed.queryByRole("button", { name: "Cerrar" }),
     ).not.toBeInTheDocument();

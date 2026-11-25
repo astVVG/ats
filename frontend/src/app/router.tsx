@@ -5,6 +5,7 @@ import { NotFoundPage } from "@/app/pages/NotFoundPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import { RequireRole } from "@/features/auth/components/RequireRole";
+import { BoardPage } from "@/features/board/components/BoardPage";
 import { CandidateDetailPage } from "@/features/candidates/components/CandidateDetailPage";
 import { CandidatesPage } from "@/features/candidates/components/CandidatesPage";
 import { CreateCandidatePage } from "@/features/candidates/components/CreateCandidatePage";
@@ -41,6 +42,7 @@ export const routes: RouteObject[] = [
           { path: "jobs", element: <JobsPage /> },
           { path: "jobs/new", element: <CreateJobPage /> },
           { path: "jobs/:id/edit", element: <EditJobPage /> },
+          { path: "jobs/:id/board", element: <BoardPage /> },
           { path: "candidates", element: <CandidatesPage /> },
           { path: "candidates/new", element: <CreateCandidatePage /> },
           { path: "candidates/:id", element: <CandidateDetailPage /> },

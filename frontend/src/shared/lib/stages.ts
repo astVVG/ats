@@ -50,3 +50,12 @@ export const STAGE_ACCENT_BORDER_CLASSES: Record<Stage, string> = {
   HIRED: "border-t-stage-hired",
   REJECTED: "border-t-stage-rejected",
 };
+
+/** Highlight for the column a card is being dragged over. */
+export const STAGE_DROP_HIGHLIGHT_CLASSES: Record<Stage, string> = {
+  APPLIED: "bg-stage-applied-soft ring-2 ring-stage-applied",
+  INTERVIEW: "bg-stage-interview-soft ring-2 ring-stage-interview",
+  OFFER: "bg-stage-offer-soft ring-2 ring-stage-offer",
+  HIRED: "bg-stage-hired-soft ring-2 ring-stage-hired",
+  REJECTED: "bg-stage-rejected-soft ring-2 ring-stage-rejected",
+};
