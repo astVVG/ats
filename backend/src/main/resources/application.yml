@@ -34,3 +34,6 @@ app:
   uploads:
     # Resumes are stored under {dir}/resumes/{candidateId}/.
     dir: ${UPLOADS_DIR:./uploads}
+  metrics:
+    # Zone of the day boundaries for the from and to filters of /api/metrics.
+    time-zone: America/Mexico_City

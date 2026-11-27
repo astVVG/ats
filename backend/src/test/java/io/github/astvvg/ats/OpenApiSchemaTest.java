@@ -98,7 +98,16 @@ class OpenApiSchemaTest {
                         Set.of("id", "toStage", "movedBy", "movedAt"),
                         Set.of("fromStage")),
                 Arguments.of("StageHistoryUserResponse", Set.of("id", "name"), Set.of()),
-                Arguments.of("PageResponseStageHistoryResponse", page, Set.of()));
+                Arguments.of("PageResponseStageHistoryResponse", page, Set.of()),
+                Arguments.of("FunnelResponse", Set.of("stages"), Set.of()),
+                Arguments.of(
+                        "FunnelStageResponse",
+                        Set.of("stage", "count"),
+                        Set.of("conversionToNext")),
+                Arguments.of("TimeInStageResponse", Set.of("stages"), Set.of()),
+                Arguments.of(
+                        "StageTimeResponse", Set.of("stage", "samples"), Set.of("averageHours")),
+                Arguments.of("TimeToHireResponse", Set.of("hiredCount"), Set.of("averageDays")));
     }
 
     static Stream<Arguments> newOperations() {
@@ -115,7 +124,39 @@ class OpenApiSchemaTest {
                         "200",
                         "PageResponseStageHistoryResponse"),
                 Arguments.of(
-                        "/api/applications/{id}/rating", "patch", "200", "ApplicationResponse"));
+                        "/api/applications/{id}/rating", "patch", "200", "ApplicationResponse"),
+                Arguments.of("/api/metrics/funnel", "get", "200", "FunnelResponse"),
+                Arguments.of("/api/metrics/time-in-stage", "get", "200", "TimeInStageResponse"),
+                Arguments.of("/api/metrics/time-to-hire", "get", "200", "TimeToHireResponse"));
+    }
+
+    static Stream<String> metricsPaths() {
+        return Stream.of(
+                "/api/metrics/funnel", "/api/metrics/time-in-stage", "/api/metrics/time-to-hire");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("metricsPaths")
+    void metricsOperationDocumentsItsOptionalFilters(String path) {
+        JsonNode parameters = paths.path(path).path("get").path("parameters");
+        Set<String> names = new HashSet<>();
+        parameters.forEach(p -> names.add(p.path("name").asText()));
+        assertThat(names)
+                .as("%s parameters", path)
+                .containsExactlyInAnyOrder("jobId", "from", "to");
+        for (JsonNode parameter : parameters) {
+            String name = parameter.path("name").asText();
+            assertThat(parameter.path("in").asText()).isEqualTo("query");
+            assertThat(parameter.path("required").asBoolean(false))
+                    .as("%s required", name)
+                    .isFalse();
+            JsonNode schema = parameter.path("schema");
+            if (name.equals("jobId")) {
+                assertThat(schema.path("format").asText()).isEqualTo("int64");
+            } else {
+                assertThat(schema.path("format").asText()).as("%s format", name).isEqualTo("date");
+            }
+        }
     }
 
     static Stream<Arguments> responseCodes() {
@@ -132,7 +173,12 @@ class OpenApiSchemaTest {
                 Arguments.of(
                         "/api/applications/{id}/rating",
                         "patch",
-                        Set.of("200", "400", "401", "404")));
+                        Set.of("200", "400", "401", "404")),
+                Arguments.of("/api/metrics/funnel", "get", Set.of("200", "400", "401", "404")),
+                Arguments.of(
+                        "/api/metrics/time-in-stage", "get", Set.of("200", "400", "401", "404")),
+                Arguments.of(
+                        "/api/metrics/time-to-hire", "get", Set.of("200", "400", "401", "404")));
     }
 
     @ParameterizedTest(name = "{1} {0}")
