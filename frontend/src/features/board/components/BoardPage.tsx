@@ -26,13 +26,14 @@ import {
   previewMove,
   resolveDrop,
 } from "@/features/board/board-dnd";
+import { AddApplicationDialog } from "@/features/board/components/AddApplicationDialog";
 import { BoardCardOverlay } from "@/features/board/components/BoardCard";
 import { BoardColumn } from "@/features/board/components/BoardColumn";
 import { useJobBoard } from "@/features/board/hooks/useJobBoard";
 import { useMoveApplication } from "@/features/board/hooks/useMoveApplication";
+import { HIRED_ADMIN_ONLY } from "@/features/board/messages";
 import {
   parseJobId,
-  type Board,
   type BoardColumn as BoardColumnData,
 } from "@/features/board/types";
 import { JOB_STATUS_LABELS } from "@/features/jobs/types";
@@ -40,23 +41,6 @@ import { STAGE_LABELS, type Stage } from "@/shared/lib/stages";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-
-const HIRED_ADMIN_ONLY =
-  "Solo un administrador puede sacar una postulación de Contratado.";
-
-function moveErrorMessage(error: unknown): string {
-  const status = isAxiosError(error) ? error.response?.status : undefined;
-  switch (status) {
-    case 409:
-      return "La vacante está cerrada y no admite cambios.";
-    case 403:
-      return HIRED_ADMIN_ONLY;
-    case 404:
-      return "La postulación ya no existe.";
-    default:
-      return "No se pudo mover la postulación. Inténtalo de nuevo.";
-  }
-}
 
 const screenReaderInstructions: ScreenReaderInstructions = {
   draggable:
@@ -98,16 +82,18 @@ function JobNotFound() {
   );
 }
 
-function BoardContent({ board, jobId }: { board: Board; jobId: number }) {
+// One component on purpose: the one that clears the drag copy must also read
+// the board query, so the render after a drop already shows the moved card.
+function JobBoard({ jobId }: { jobId: number }) {
+  const query = useJobBoard(jobId);
   const { role } = useAuth();
   const move = useMoveApplication(jobId);
-  // Local copy while dragging and while a move is saved; null shows the server board.
+  // Local copy while dragging; null shows the cached board, moves included.
   const [dragColumns, setDragColumns] = useState<BoardColumnData[] | null>(
     null,
   );
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [overStage, setOverStage] = useState<Stage | null>(null);
-  const [savingId, setSavingId] = useState<number | null>(null);
   const sensors = useSensors(
     // A short distance keeps clicks on the candidate link working.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -116,10 +102,41 @@ function BoardContent({ board, jobId }: { board: Board; jobId: number }) {
     }),
   );
 
+  if (query.isPending) {
+    return (
+      <p role="status" className="text-muted-foreground">
+        Cargando tablero…
+      </p>
+    );
+  }
+
+  if (query.isError) {
+    if (isAxiosError(query.error) && query.error.response?.status === 404) {
+      return <JobNotFound />;
+    }
+    return (
+      <Alert variant="destructive">
+        <AlertDescription className="flex items-center justify-between gap-4">
+          <span>No se pudo cargar el tablero.</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+          >
+            Reintentar
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  const board = query.data;
   const serverColumns = board.columns;
   const columns = dragColumns ?? serverColumns;
   const closed = board.job.status === "CLOSED";
-  const dragDisabled = closed || move.isPending;
+  const dragDisabled = closed;
   const total = serverColumns.reduce(
     (sum, column) => sum + column.applications.length,
     0,
@@ -201,18 +218,10 @@ function BoardContent({ board, jobId }: { board: Board; jobId: number }) {
       setDragColumns(null);
       return;
     }
-    setDragColumns(final);
-    setSavingId(drop.applicationId);
-    move.mutate(drop, {
-      onError: (error) => {
-        toast.error(moveErrorMessage(error));
-      },
-      // The board has been reloaded by now, so the server order takes over.
-      onSettled: () => {
-        setDragColumns(null);
-        setSavingId(null);
-      },
-    });
+    // mutate() writes the move to the cache before returning, so dropping the
+    // local copy in the same render shows the new order without a jump.
+    move.mutate(drop);
+    setDragColumns(null);
   }
 
   const announcements: Announcements = {
@@ -279,9 +288,12 @@ function BoardContent({ board, jobId }: { board: Board; jobId: number }) {
             </span>
           </div>
         </div>
-        <Button asChild variant="outline">
-          <Link to="/jobs">Volver a vacantes</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <AddApplicationDialog jobId={jobId} closed={closed} />
+          <Button asChild variant="outline">
+            <Link to="/jobs">Volver a vacantes</Link>
+          </Button>
+        </div>
       </div>
 
       {closed && (
@@ -308,7 +320,6 @@ function BoardContent({ board, jobId }: { board: Board; jobId: number }) {
               column={column}
               highlighted={activeId !== null && overStage === column.stage}
               dragDisabled={dragDisabled}
-              savingId={savingId}
             />
           ))}
         </div>
@@ -318,42 +329,6 @@ function BoardContent({ board, jobId }: { board: Board; jobId: number }) {
       </DndContext>
     </section>
   );
-}
-
-function JobBoard({ jobId }: { jobId: number }) {
-  const board = useJobBoard(jobId);
-
-  if (board.isPending) {
-    return (
-      <p role="status" className="text-muted-foreground">
-        Cargando tablero…
-      </p>
-    );
-  }
-
-  if (board.isError) {
-    if (isAxiosError(board.error) && board.error.response?.status === 404) {
-      return <JobNotFound />;
-    }
-    return (
-      <Alert variant="destructive">
-        <AlertDescription className="flex items-center justify-between gap-4">
-          <span>No se pudo cargar el tablero.</span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={board.isFetching}
-            onClick={() => void board.refetch()}
-          >
-            Reintentar
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  return <BoardContent board={board.data} jobId={jobId} />;
 }
 
 export function BoardPage() {

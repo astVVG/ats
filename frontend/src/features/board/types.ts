@@ -7,6 +7,8 @@ export type BoardCard = components["schemas"]["BoardCardResponse"];
 export type MoveApplicationRequest =
   components["schemas"]["MoveApplicationRequest"];
 export type Application = components["schemas"]["ApplicationResponse"];
+export type CreateApplicationRequest =
+  components["schemas"]["CreateApplicationRequest"];
 
 /** The :id route parameter as a job id, or null if it cannot be one. */
 export function parseJobId(value: string | undefined): number | null {
