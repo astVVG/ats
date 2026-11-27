@@ -18,12 +18,16 @@ type BoardColumnProps = {
   /** A dragged card is over this column. */
   highlighted: boolean;
   dragDisabled: boolean;
+  onOpenDetail: (applicationId: number) => void;
+  jobId: number;
 };
 
 export function BoardColumn({
   column,
   highlighted,
   dragDisabled,
+  onOpenDetail,
+  jobId,
 }: BoardColumnProps) {
   const { stage, applications } = column;
   const { setNodeRef } = useDroppable({ id: stage });
@@ -65,7 +69,13 @@ export function BoardColumn({
           className="flex min-h-32 flex-1 flex-col gap-2 px-3 pb-3"
         >
           {applications.map((card) => (
-            <BoardCard key={card.id} card={card} dragDisabled={dragDisabled} />
+            <BoardCard
+              key={card.id}
+              card={card}
+              dragDisabled={dragDisabled}
+              onOpenDetail={onOpenDetail}
+              jobId={jobId}
+            />
           ))}
           {applications.length === 0 && (
             <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed p-4 text-sm text-muted-foreground">

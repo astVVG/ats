@@ -30,3 +30,30 @@ export function createApplicationErrorMessage(error: unknown): string {
       return "No se pudo agregar al candidato. Inténtalo de nuevo.";
   }
 }
+
+export const NOTE_INVALID =
+  "Revisa la nota: no puede estar vacía ni pasar de 2000 caracteres.";
+
+/** Shown above the form; a 400 goes to the field instead. */
+export function createNoteErrorMessage(error: unknown): string {
+  return httpStatus(error) === 404
+    ? "La postulación ya no existe."
+    : "No se pudo guardar la nota. Inténtalo de nuevo.";
+}
+
+export function deleteNoteErrorMessage(error: unknown): string {
+  switch (httpStatus(error)) {
+    case 403:
+      return "No tienes permiso para eliminar esta nota.";
+    case 404:
+      return "La nota ya no existe.";
+    default:
+      return "No se pudo eliminar la nota. Inténtalo de nuevo.";
+  }
+}
+
+export function rateErrorMessage(error: unknown): string {
+  return httpStatus(error) === 404
+    ? "La postulación ya no existe."
+    : "No se pudo guardar la calificación. Inténtalo de nuevo.";
+}

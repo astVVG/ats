@@ -1,8 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, PanelRightOpen } from "lucide-react";
 import type { Ref } from "react";
 import { Link } from "react-router";
+import { StarRating } from "@/features/board/components/StarRating";
+import { useRateApplication } from "@/features/board/hooks/useRateApplication";
 import type { BoardCard as BoardCardData } from "@/features/board/types";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -20,7 +22,22 @@ type CardContentProps = {
   handleRef?: Ref<HTMLButtonElement>;
   handleAttributes?: Sortable["attributes"];
   handleListeners?: Sortable["listeners"];
+  /** Without it the detail button is shown but inert, as in the drag copy. */
+  onOpenDetail?: (applicationId: number) => void;
+  /** Without it the stars are read only, as in the drag copy. */
+  jobId?: number;
 };
+
+function CardRating({ jobId, card }: { jobId: number; card: BoardCardData }) {
+  const rate = useRateApplication(jobId, card.id);
+  return (
+    <StarRating
+      value={card.rating ?? null}
+      label={`Calificación de ${card.candidate.fullName}`}
+      onChange={(rating) => rate.mutate(rating)}
+    />
+  );
+}
 
 function CardContent({
   card,
@@ -28,6 +45,8 @@ function CardContent({
   handleRef,
   handleAttributes,
   handleListeners,
+  onOpenDetail,
+  jobId,
 }: CardContentProps) {
   const name = card.candidate.fullName;
   return (
@@ -51,20 +70,43 @@ function CardContent({
             {dateFormat.format(new Date(card.updatedAt))}
           </time>
         </p>
+        {jobId === undefined ? (
+          <StarRating
+            value={card.rating ?? null}
+            label={`Calificación de ${name}`}
+            className="-ml-0.5"
+          />
+        ) : (
+          <CardRating jobId={jobId} card={card} />
+        )}
       </div>
-      <Button
-        ref={handleRef}
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        className="cursor-grab touch-none text-muted-foreground"
-        disabled={dragDisabled}
-        {...handleAttributes}
-        {...handleListeners}
-        aria-label={`Mover postulación de ${name}`}
-      >
-        <GripVertical aria-hidden="true" />
-      </Button>
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <Button
+          ref={handleRef}
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="cursor-grab touch-none text-muted-foreground"
+          disabled={dragDisabled}
+          {...handleAttributes}
+          {...handleListeners}
+          aria-label={`Mover postulación de ${name}`}
+        >
+          <GripVertical aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="text-muted-foreground"
+          data-detail-trigger={onOpenDetail ? card.id : undefined}
+          tabIndex={onOpenDetail ? undefined : -1}
+          onClick={onOpenDetail ? () => onOpenDetail(card.id) : undefined}
+          aria-label={`Ver detalle de la postulación de ${name}`}
+        >
+          <PanelRightOpen aria-hidden="true" />
+        </Button>
+      </div>
     </>
   );
 }
@@ -88,6 +130,9 @@ type BoardCardProps = {
   dragDisabled?: boolean;
   /** The card's move is being saved. */
   saving?: boolean;
+  onOpenDetail?: (applicationId: number) => void;
+  /** Enables rating from the card. */
+  jobId?: number;
 };
 
 /** A card that can be dragged with its handle, by pointer or keyboard. */
@@ -95,6 +140,8 @@ export function BoardCard({
   card,
   dragDisabled = false,
   saving = false,
+  onOpenDetail,
+  jobId,
 }: BoardCardProps) {
   const {
     setNodeRef,
@@ -124,6 +171,8 @@ export function BoardCard({
         handleRef={setActivatorNodeRef}
         handleAttributes={attributes}
         handleListeners={listeners}
+        onOpenDetail={onOpenDetail}
+        jobId={jobId}
       />
     </li>
   );

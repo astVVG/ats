@@ -273,7 +273,7 @@ describe("BoardPage", () => {
 
     expect(
       await screen.findByText(
-        "Vacante cerrada: el tablero es de solo lectura.",
+        "Vacante cerrada: no se pueden mover ni agregar postulaciones. Las notas y la calificación siguen disponibles.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Cerrada")).toBeInTheDocument();
