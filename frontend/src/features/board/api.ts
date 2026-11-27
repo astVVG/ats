@@ -2,6 +2,7 @@ import { apiClient } from "@/shared/api/client";
 import type {
   Application,
   Board,
+  CreateApplicationRequest,
   MoveApplicationRequest,
 } from "@/features/board/types";
 
@@ -18,5 +19,12 @@ export async function moveApplication(
     `/applications/${id}/move`,
     request,
   );
+  return data;
+}
+
+export async function createApplication(
+  request: CreateApplicationRequest,
+): Promise<Application> {
+  const { data } = await apiClient.post<Application>("/applications", request);
   return data;
 }

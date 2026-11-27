@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyMove,
   canMoveBetween,
   findContainer,
   previewMove,
   resolveDrop,
 } from "@/features/board/board-dnd";
-import type { BoardColumn } from "@/features/board/types";
+import type { Board, BoardColumn } from "@/features/board/types";
 import type { Stage } from "@/shared/lib/stages";
 import { buildBoard, buildBoardCard } from "@/test/utils";
 
@@ -154,5 +155,86 @@ describe("canMoveBetween", () => {
     expect(canMoveBetween("HIRED", "REJECTED", "RECRUITER")).toBe(false);
     expect(canMoveBetween("HIRED", "REJECTED", null)).toBe(false);
     expect(canMoveBetween("HIRED", "REJECTED", "ADMIN")).toBe(true);
+  });
+});
+
+describe("applyMove", () => {
+  /** APPLIED 1,2,3 · INTERVIEW 4,5 · OFFER empty · HIRED 6 · REJECTED empty */
+  function board(): Board {
+    const cards = (...ids: number[]) => ids.map((id) => buildBoardCard({ id }));
+    return buildBoard({
+      cards: {
+        APPLIED: cards(1, 2, 3),
+        INTERVIEW: cards(4, 5),
+        HIRED: cards(6),
+      },
+    });
+  }
+
+  function positions(b: Board, stage: Stage) {
+    return b.columns
+      .find((c) => c.stage === stage)!
+      .applications.map((a) => a.position);
+  }
+
+  /** Every column holds exactly positions 0..n-1. */
+  function expectContiguous(b: Board) {
+    for (const column of b.columns) {
+      expect(positions(b, column.stage)).toEqual(
+        column.applications.map((_, i) => i),
+      );
+    }
+  }
+
+  it.each([
+    [0, [2, 4, 5]],
+    [1, [4, 2, 5]],
+    [2, [4, 5, 2]],
+  ])("moves a card to index %i of another column", (position, expected) => {
+    const moved = applyMove(board(), 2, "INTERVIEW", position);
+
+    expect(ids(moved.columns, "APPLIED")).toEqual([1, 3]);
+    expect(ids(moved.columns, "INTERVIEW")).toEqual(expected);
+    expectContiguous(moved);
+  });
+
+  it("moves a card into an empty column", () => {
+    const moved = applyMove(board(), 6, "OFFER", 0);
+
+    expect(ids(moved.columns, "HIRED")).toEqual([]);
+    expect(ids(moved.columns, "OFFER")).toEqual([6]);
+    expectContiguous(moved);
+  });
+
+  it("reorders downwards and upwards inside a column", () => {
+    const down = applyMove(board(), 1, "APPLIED", 2);
+    expect(ids(down.columns, "APPLIED")).toEqual([2, 3, 1]);
+    expectContiguous(down);
+
+    const up = applyMove(board(), 3, "APPLIED", 0);
+    expect(ids(up.columns, "APPLIED")).toEqual([3, 1, 2]);
+    expectContiguous(up);
+  });
+
+  it("returns the same board for the same stage and position", () => {
+    const original = board();
+    expect(applyMove(original, 2, "APPLIED", 1)).toBe(original);
+  });
+
+  it("returns the same board for an unknown card", () => {
+    const original = board();
+    expect(applyMove(original, 999, "OFFER", 0)).toBe(original);
+  });
+
+  it("keeps the other columns and does not mutate the original", () => {
+    const original = board();
+    const snapshot = structuredClone(original);
+
+    const moved = applyMove(original, 2, "INTERVIEW", 0);
+
+    expect(original).toEqual(snapshot);
+    expect(moved).not.toBe(original);
+    const hired = (b: Board) => b.columns.find((c) => c.stage === "HIRED");
+    expect(hired(moved)).toBe(hired(original));
   });
 });

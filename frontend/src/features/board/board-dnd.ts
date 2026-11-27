@@ -1,4 +1,4 @@
-import type { BoardColumn } from "@/features/board/types";
+import type { Board, BoardColumn } from "@/features/board/types";
 import type { Role } from "@/features/auth/types";
 import { STAGES, type Stage } from "@/shared/lib/stages";
 
@@ -129,4 +129,46 @@ export function resolveDrop(
 /** Only an ADMIN can take an application out of HIRED. */
 export function canMoveBetween(from: Stage, to: Stage, role: Role | null) {
   return from !== "HIRED" || to === "HIRED" || role === "ADMIN";
+}
+
+/**
+ * The board with the card moved to `position` (its final index) in `stage`,
+ * as the backend applies it; positions are renumbered 0..n-1 in the columns
+ * that change. Returns the same board when the card is already there or is
+ * unknown; never mutates it.
+ */
+export function applyMove(
+  board: Board,
+  applicationId: number,
+  stage: Stage,
+  position: number,
+): Board {
+  const from = locate(board.columns, applicationId);
+  if (from === null || !board.columns.some((c) => c.stage === stage)) {
+    return board;
+  }
+  if (from.stage === stage && from.index === position) {
+    return board;
+  }
+  const card = board.columns.find((c) => c.stage === from.stage)!.applications[
+    from.index
+  ];
+
+  const columns = board.columns.map((column) => {
+    if (column.stage !== from.stage && column.stage !== stage) {
+      return column;
+    }
+    const rest = column.applications.filter((a) => a.id !== applicationId);
+    const cards =
+      column.stage === stage
+        ? [...rest.slice(0, position), card, ...rest.slice(position)]
+        : rest;
+    return {
+      ...column,
+      applications: cards.map((a, index) =>
+        a.position === index ? a : { ...a, position: index },
+      ),
+    };
+  });
+  return { ...board, columns };
 }

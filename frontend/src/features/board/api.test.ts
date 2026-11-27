@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getJobBoard, moveApplication } from "@/features/board/api";
+import {
+  createApplication,
+  getJobBoard,
+  moveApplication,
+} from "@/features/board/api";
 import { apiClient } from "@/shared/api/client";
 import { buildBoard } from "@/test/utils";
 
@@ -27,6 +31,20 @@ describe("board api", () => {
     expect(patch).toHaveBeenCalledWith("/applications/3/move", {
       stage: "OFFER",
       position: 1,
+    });
+  });
+
+  it("creates an application for a job and a candidate", async () => {
+    const post = vi
+      .spyOn(apiClient, "post")
+      .mockResolvedValue({ data: { id: 9, stage: "APPLIED" } });
+
+    await expect(
+      createApplication({ jobId: 10, candidateId: 20 }),
+    ).resolves.toEqual({ id: 9, stage: "APPLIED" });
+    expect(post).toHaveBeenCalledWith("/applications", {
+      jobId: 10,
+      candidateId: 20,
     });
   });
 });

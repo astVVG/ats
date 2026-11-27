@@ -12,9 +12,11 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { AxiosError } from "axios";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getJobBoard, moveApplication } from "@/features/board/api";
-import type { Board } from "@/features/board/types";
+import type { Application, Board } from "@/features/board/types";
 import { getCandidate } from "@/features/candidates/api";
 import { STAGE_LABELS, STAGES } from "@/shared/lib/stages";
 import {
@@ -35,6 +37,8 @@ vi.mock("@/features/board/api", () => ({
 
 vi.mock("@/features/candidates/api", () => ({
   getCandidate: vi.fn(),
+  listCandidates: vi.fn(),
+  createCandidate: vi.fn(),
 }));
 
 // jsdom has no layout, so pointer drags cannot be simulated. The real DndContext
@@ -128,11 +132,39 @@ function drag(
   act(() => dnd.props?.onDragEnd?.(end as unknown as DragEndEvent));
 }
 
+/** A move request that the test answers when it wants. */
+function deferred() {
+  let resolve: () => void = () => {};
+  let reject: (error: unknown) => void = () => {};
+  const promise = new Promise<Application>((res, rej) => {
+    resolve = () => res(buildApplication());
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+function buildApplication(): Application {
+  return {
+    id: 1,
+    jobId: 10,
+    candidateId: 101,
+    stage: "APPLIED",
+    position: 0,
+    rating: null,
+    createdAt: "2026-04-10T10:00:00Z",
+    updatedAt: "2026-04-10T10:00:00Z",
+  };
+}
+
 describe("BoardPage", () => {
   afterEach(() => {
     vi.resetAllMocks();
     dnd.props = null;
     signOut();
+    // Toasts live in a module-level store shared by every test.
+    act(() => {
+      toast.dismiss();
+    });
   });
 
   // ---- states ----
@@ -312,35 +344,51 @@ describe("BoardPage", () => {
     expect(names("APPLIED")).toEqual(["Ana", "Beto", "Carla"]);
   });
 
-  it("shows the new order while saving and blocks other drags", async () => {
-    let finish: () => void = () => {};
-    moveApplicationMock.mockReturnValue(
-      new Promise((resolve) => {
-        finish = () => resolve({} as never);
-      }),
-    );
+  it("shows the move at once, without a jump, and reloads once when saved", async () => {
+    const save = deferred();
+    moveApplicationMock.mockReturnValue(save.promise);
     renderBoard();
     await screen.findByRole("heading", { name: "Desarrollador backend" });
+    // Records any frame in which Carla goes back into APPLIED after the drop.
+    const observer = new MutationObserver(() => {});
+    observer.observe(column("APPLIED"), { childList: true, subtree: true });
 
     drag(3, 4, 3);
 
-    await waitFor(() => expect(names("INTERVIEW")).toEqual(["Carla", "Diego"]));
+    // No waitFor: the new order is there right after the drop.
+    expect(names("INTERVIEW")).toEqual(["Carla", "Diego"]);
+    expect(names("APPLIED")).toEqual(["Ana", "Beto"]);
+    const reinserted = observer
+      .takeRecords()
+      .flatMap((record) => [...record.addedNodes])
+      .some((node) => node.textContent?.includes("Carla"));
+    observer.disconnect();
+    expect(reinserted).toBe(false);
     expect(
       screen.getByRole("link", { name: "Carla" }).closest("li"),
-    ).toHaveAttribute("aria-busy", "true");
+    ).not.toHaveAttribute("aria-busy");
     for (const handle of screen.getAllByRole("button", {
       name: /^Mover postulación/,
     })) {
-      expect(handle).toBeDisabled();
+      expect(handle).toBeEnabled();
     }
+    expect(getJobBoardMock).toHaveBeenCalledTimes(1);
 
-    getJobBoardMock.mockResolvedValue(sampleBoard());
-    await act(async () => finish());
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Mover postulación de Ana" }),
-      ).toBeEnabled(),
+    getJobBoardMock.mockResolvedValue(
+      buildBoard({
+        cards: {
+          APPLIED: [card(1, "Ana"), card(2, "Beto")],
+          INTERVIEW: [card(3, "Carla"), card(4, "Diego")],
+          HIRED: [card(5, "Elena")],
+        },
+      }),
     );
+    await act(async () => save.resolve());
+
+    await waitFor(() => expect(getJobBoardMock).toHaveBeenCalledTimes(2));
+    expect(names("INTERVIEW")).toEqual(["Carla", "Diego"]);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(getJobBoardMock).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -350,22 +398,99 @@ describe("BoardPage", () => {
     [400, "No se pudo mover la postulación. Inténtalo de nuevo."],
     [500, "No se pudo mover la postulación. Inténtalo de nuevo."],
   ])(
-    "shows a toast for a %s and reloads the board",
+    "puts the card back and shows a toast for a %s",
     async (status, message) => {
-      moveApplicationMock.mockRejectedValue(httpError(status));
+      const save = deferred();
+      moveApplicationMock.mockReturnValue(save.promise);
       renderBoard();
       await screen.findByRole("heading", { name: "Desarrollador backend" });
+      // The reload never answers, so what is shown afterwards is the rollback.
+      getJobBoardMock.mockReturnValue(new Promise(() => {}));
 
       drag(1, "REJECTED");
+      expect(names("REJECTED")).toEqual(["Ana"]);
+
+      await act(async () => save.reject(httpError(status)));
 
       expect(await screen.findByText(message)).toBeInTheDocument();
-      await waitFor(() => expect(getJobBoardMock).toHaveBeenCalledTimes(2));
-      await waitFor(() =>
-        expect(names("APPLIED")).toEqual(["Ana", "Beto", "Carla"]),
-      );
+      expect(names("APPLIED")).toEqual(["Ana", "Beto", "Carla"]);
       expect(names("REJECTED")).toEqual([]);
+      await waitFor(() => expect(getJobBoardMock).toHaveBeenCalledTimes(2));
     },
   );
+
+  it("puts the card back after a network error", async () => {
+    const save = deferred();
+    moveApplicationMock.mockReturnValue(save.promise);
+    renderBoard();
+    await screen.findByRole("heading", { name: "Desarrollador backend" });
+    getJobBoardMock.mockReturnValue(new Promise(() => {}));
+
+    drag(2, 4, 2);
+    await act(async () => save.reject(new AxiosError("Network Error")));
+
+    expect(
+      await screen.findByText(
+        "No se pudo mover la postulación. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    expect(names("APPLIED")).toEqual(["Ana", "Beto", "Carla"]);
+    expect(names("INTERVIEW")).toEqual(["Diego"]);
+  });
+
+  it("reloads a missing card's board even while another move is pending", async () => {
+    const first = deferred();
+    const second = deferred();
+    moveApplicationMock
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    renderBoard();
+    await screen.findByRole("heading", { name: "Desarrollador backend" });
+
+    drag(1, "OFFER");
+    drag(4, "REJECTED");
+    await act(async () => first.reject(httpError(404)));
+
+    await waitFor(() => expect(getJobBoardMock).toHaveBeenCalledTimes(2));
+    await act(async () => second.resolve());
+  });
+
+  it("allows several moves in a row and reloads once after the last", async () => {
+    const first = deferred();
+    const second = deferred();
+    moveApplicationMock
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    renderBoard();
+    await screen.findByRole("heading", { name: "Desarrollador backend" });
+
+    drag(1, "OFFER");
+    drag(2, "OFFER");
+
+    expect(names("OFFER")).toEqual(["Ana", "Beto"]);
+    expect(names("APPLIED")).toEqual(["Carla"]);
+    // The request itself starts a microtask after the cache update.
+    await waitFor(() => expect(moveApplicationMock).toHaveBeenCalledTimes(2));
+    expect(moveApplicationMock).toHaveBeenNthCalledWith(1, 1, {
+      stage: "OFFER",
+      position: 0,
+    });
+    expect(moveApplicationMock).toHaveBeenNthCalledWith(2, 2, {
+      stage: "OFFER",
+      position: 1,
+    });
+
+    await act(async () => first.resolve());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    // The second move is still saving, so the board is not reloaded yet.
+    expect(getJobBoardMock).toHaveBeenCalledTimes(1);
+    expect(names("OFFER")).toEqual(["Ana", "Beto"]);
+
+    await act(async () => second.resolve());
+    await waitFor(() => expect(getJobBoardMock).toHaveBeenCalledTimes(2));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(getJobBoardMock).toHaveBeenCalledTimes(2);
+  });
 
   // ---- roles ----
 
