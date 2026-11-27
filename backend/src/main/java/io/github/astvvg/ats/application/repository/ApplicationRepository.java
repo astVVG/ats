@@ -2,6 +2,7 @@ package io.github.astvvg.ats.application.repository;
 
 import io.github.astvvg.ats.application.domain.Application;
 import io.github.astvvg.ats.application.domain.Stage;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -50,6 +51,16 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
             @Param("stage") Stage stage,
             @Param("from") int from,
             @Param("to") int to);
+
+    /** Writes only the rating and updated_at of one application; stage and position are kept. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(
+            "update Application a set a.rating = :rating, a.updatedAt = :updatedAt"
+                    + " where a.id = :id")
+    int updateRating(
+            @Param("id") Long id,
+            @Param("rating") Short rating,
+            @Param("updatedAt") Instant updatedAt);
 
     /** Every application of a job with its candidate, in one query. */
     @Query(

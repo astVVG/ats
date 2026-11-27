@@ -6,20 +6,30 @@ import io.github.astvvg.ats.application.domain.StageHistory;
 import io.github.astvvg.ats.application.dto.ApplicationResponse;
 import io.github.astvvg.ats.application.dto.CreateApplicationRequest;
 import io.github.astvvg.ats.application.dto.MoveApplicationRequest;
+import io.github.astvvg.ats.application.dto.StageHistoryResponse;
+import io.github.astvvg.ats.application.dto.UpdateRatingRequest;
 import io.github.astvvg.ats.application.repository.ApplicationRepository;
 import io.github.astvvg.ats.application.repository.StageHistoryRepository;
 import io.github.astvvg.ats.candidate.domain.Candidate;
 import io.github.astvvg.ats.candidate.repository.CandidateRepository;
 import io.github.astvvg.ats.common.BusinessConflictException;
 import io.github.astvvg.ats.common.InvalidFieldException;
+import io.github.astvvg.ats.common.PageRequests;
+import io.github.astvvg.ats.common.PageResponse;
 import io.github.astvvg.ats.common.ResourceNotFoundException;
 import io.github.astvvg.ats.job.domain.Job;
 import io.github.astvvg.ats.job.domain.JobStatus;
 import io.github.astvvg.ats.job.repository.JobRepository;
 import io.github.astvvg.ats.user.domain.Role;
 import io.github.astvvg.ats.user.repository.UserRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
+import java.util.Set;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +42,8 @@ public class ApplicationService {
     static final String JOB_CLOSED = "The job is closed and does not accept applications";
     static final String JOB_CLOSED_FOR_MOVES = "The job is closed and its board cannot change";
     private static final String UNIQUE_CONSTRAINT = "uq_applications_job_candidate";
+    static final Set<String> HISTORY_SORTABLE_PROPERTIES = Set.of("movedAt");
+    static final Sort HISTORY_DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "movedAt");
 
     private final ApplicationRepository applicationRepository;
     private final StageHistoryRepository stageHistoryRepository;
@@ -147,6 +159,44 @@ public class ApplicationService {
                     new StageHistory(moved, from, to, userRepository.getReferenceById(userId)));
         }
         return applicationMapper.toResponse(moved);
+    }
+
+    /**
+     * Sets or clears the rating; allowed on closed jobs and recorded nowhere else. Setting the
+     * current value again changes nothing, not even updated_at.
+     */
+    public ApplicationResponse rate(Long id, UpdateRatingRequest request) {
+        Long jobId = applicationRepository.findJobIdById(id).orElseThrow(() -> notFound(id));
+        // Same lock as create and move, so a rating never races a reindex of the board.
+        jobRepository.findByIdForUpdate(jobId).orElseThrow(() -> notFound(id));
+        Application application =
+                applicationRepository.findById(id).orElseThrow(() -> notFound(id));
+        Short rating = request.rating() == null ? null : request.rating().shortValue();
+        if (Objects.equals(application.getRating(), rating)) {
+            return applicationMapper.toResponse(application);
+        }
+
+        // Truncated to the precision of TIMESTAMPTZ, as the entity does for its own timestamps.
+        applicationRepository.updateRating(
+                id, rating, Instant.now().truncatedTo(ChronoUnit.MICROS));
+        // The bulk update cleared the persistence context; load the row again.
+        Application rated = applicationRepository.findById(id).orElseThrow(() -> notFound(id));
+        return applicationMapper.toResponse(rated);
+    }
+
+    /** Stage changes of one application, including the initial entry; closed jobs included. */
+    @Transactional(readOnly = true)
+    public PageResponse<StageHistoryResponse> history(Long id, Pageable pageable) {
+        if (!applicationRepository.existsById(id)) {
+            throw notFound(id);
+        }
+        Pageable sorted =
+                PageRequests.withSortTiedById(
+                        pageable, HISTORY_SORTABLE_PROPERTIES, HISTORY_DEFAULT_SORT);
+        return PageResponse.from(
+                stageHistoryRepository
+                        .findByApplicationId(id, sorted)
+                        .map(applicationMapper::toHistory));
     }
 
     private static ResourceNotFoundException notFound(Long id) {
