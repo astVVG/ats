@@ -21,11 +21,16 @@ export function AppLayout() {
   return (
     <div className="min-h-screen">
       <header className="border-b">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+        {/* Below lg the row wraps and the links get their own scrolling line,
+            so the page never scrolls sideways on a phone. */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 lg:h-14 lg:flex-nowrap lg:py-0">
           <Link to="/" className="font-semibold">
             Mini ATS
           </Link>
-          <nav aria-label="Principal" className="flex items-center gap-4">
+          <nav
+            aria-label="Principal"
+            className="order-last -mx-4 flex w-[calc(100%+2rem)] items-center gap-4 overflow-x-auto px-4 pb-1 whitespace-nowrap lg:order-none lg:mx-0 lg:w-auto lg:overflow-visible lg:px-0 lg:pb-0"
+          >
             <NavLink to="/" end className={navLinkClass}>
               Inicio
             </NavLink>
@@ -35,13 +40,16 @@ export function AppLayout() {
             <NavLink to="/candidates" className={navLinkClass}>
               Candidatos
             </NavLink>
+            <NavLink to="/metrics" className={navLinkClass}>
+              Métricas
+            </NavLink>
             {role === "ADMIN" && (
               <NavLink to="/users" className={navLinkClass}>
                 Usuarios
               </NavLink>
             )}
           </nav>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 lg:flex-nowrap">
             <ThemeToggle />
             <span className="text-sm">{user?.name}</span>
             {role && <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>}

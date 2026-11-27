@@ -159,6 +159,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/applications/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the notes of an application
+         * @description Sortable by createdAt only (default createdAt,desc; ties by id in the same direction). Closed jobs are included.
+         */
+        get: operations["list_3"];
+        put?: never;
+        /**
+         * Add a note to an application
+         * @description The author is the authenticated user. Allowed on applications of closed jobs.
+         */
+        post: operations["create_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{id}": {
         parameters: {
             query?: never;
@@ -193,6 +217,26 @@ export interface paths {
         patch: operations["updateStatus_1"];
         trace?: never;
     };
+    "/api/applications/{id}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rate an application
+         * @description Sets a rating from 1 to 5, or removes it with null. An empty body {} is the same as {"rating": null}. Setting the current value changes nothing, not even updatedAt. Records no stage history and is allowed on closed jobs.
+         */
+        patch: operations["rate"];
+        trace?: never;
+    };
     "/api/applications/{id}/move": {
         parameters: {
             query?: never;
@@ -211,6 +255,66 @@ export interface paths {
          * @description Changes its stage, its position inside the column, or both, and reindexes the affected columns. A stage change records a stage history entry. Moving to the current stage and position changes nothing. Only an ADMIN can move an application out of HIRED.
          */
         patch: operations["move"];
+        trace?: never;
+    };
+    "/api/metrics/time-to-hire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Average time to hire
+         * @description Days from the creation of each hired application to its first arrival in HIRED; leaving HIRED later does not change it.
+         */
+        get: operations["timeToHire"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/metrics/time-in-stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Average time in each stage
+         * @description Each finished stay is one sample: from entering the stage to the next move of the same application. Current stays are not counted.
+         */
+        get: operations["timeInStage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/metrics/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hiring funnel
+         * @description How many distinct applications ever reached each stage, and the conversion to the next one.
+         */
+        get: operations["funnel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/me": {
@@ -245,6 +349,46 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the stage history of an application
+         * @description Every stage change, including the initial entry with a null fromStage. Reordering inside a stage records nothing. Sortable by movedAt only (default movedAt,desc; ties by id in the same direction).
+         */
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a note
+         * @description Only its author or an ADMIN can delete it.
+         */
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -386,12 +530,43 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        CreateNoteRequest: {
+            /**
+             * @description Stored without leading and trailing whitespace; the length limit applies to the trimmed text.
+             * @example Strong system design answers; schedule a second interview.
+             */
+            content: string;
+        };
+        NoteAuthorResponse: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+        };
+        NoteResponse: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            applicationId: number;
+            content: string;
+            author: components["schemas"]["NoteAuthorResponse"];
+            /** Format: date-time */
+            createdAt: string;
+        };
         UpdateUserStatusRequest: {
             active: boolean;
         };
         JobStatusRequest: {
             /** @enum {string} */
             status: "OPEN" | "CLOSED";
+        };
+        /** @description An empty body {} is the same as a null rating and removes it. */
+        UpdateRatingRequest: {
+            /**
+             * Format: int32
+             * @description Whole number from 1 to 5; null or omitted removes the rating. Decimals and strings are rejected, never truncated.
+             * @example 4
+             */
+            rating?: number | null;
         };
         MoveApplicationRequest: {
             /**
@@ -416,6 +591,54 @@ export interface components {
             totalElements: number;
             /** Format: int32 */
             totalPages: number;
+        };
+        TimeToHireResponse: {
+            /**
+             * @description Average days of 24 hours from the application's creation to its first arrival in HIRED, rounded half-up to 2 decimals. Null when nobody was hired.
+             * @example 3
+             */
+            averageDays?: number | null;
+            /**
+             * Format: int64
+             * @description Applications that ever reached HIRED, each counted once even if it left HIRED later
+             */
+            hiredCount: number;
+        };
+        StageTimeResponse: {
+            /** @enum {string} */
+            stage: "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED";
+            /**
+             * @description Average length of the finished stays in this stage, in hours, rounded half-up to 2 decimals. Null without samples.
+             * @example 26
+             */
+            averageHours?: number | null;
+            /**
+             * Format: int64
+             * @description Finished stays; the current stay of each application is not counted and a stage entered again counts again
+             */
+            samples: number;
+        };
+        TimeInStageResponse: {
+            /** @description Always the five stages, in stage order */
+            stages: components["schemas"]["StageTimeResponse"][];
+        };
+        FunnelResponse: {
+            /** @description Always the five stages, in stage order */
+            stages: components["schemas"]["FunnelStageResponse"][];
+        };
+        FunnelStageResponse: {
+            /** @enum {string} */
+            stage: "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED";
+            /**
+             * Format: int64
+             * @description Distinct applications that ever reached this stage
+             */
+            count: number;
+            /**
+             * @description Ratio (not a percentage) of the next stage's count to this one in APPLIED, INTERVIEW, OFFER, HIRED, rounded half-up to 4 decimals. May exceed 1 when stages were skipped. Null for HIRED, REJECTED and when count is 0.
+             * @example 0.5
+             */
+            conversionToNext?: number | null;
         };
         PageResponseJobResponse: {
             content: components["schemas"]["JobResponse"][];
@@ -473,6 +696,47 @@ export interface components {
             totalElements: number;
             /** Format: int32 */
             totalPages: number;
+        };
+        PageResponseNoteResponse: {
+            content: components["schemas"]["NoteResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalElements: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PageResponseStageHistoryResponse: {
+            content: components["schemas"]["StageHistoryResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalElements: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        StageHistoryResponse: {
+            /** Format: int64 */
+            id: number;
+            /**
+             * @description Null for the initial entry, when the application was created
+             * @enum {string|null}
+             */
+            fromStage?: "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED" | null;
+            /** @enum {string} */
+            toStage: "APPLIED" | "INTERVIEW" | "OFFER" | "HIRED" | "REJECTED";
+            movedBy: components["schemas"]["StageHistoryUserResponse"];
+            /** Format: date-time */
+            movedAt: string;
+        };
+        StageHistoryUserResponse: {
+            /** Format: int64 */
+            id: number;
+            name: string;
         };
     };
     responses: never;
@@ -1219,6 +1483,115 @@ export interface operations {
             };
         };
     };
+    list_3: {
+        parameters: {
+            query?: {
+                /** @description Zero-based page index (0..N) */
+                page?: number;
+                /** @description The size of the page to be returned */
+                size?: number;
+                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+                sort?: string[];
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of notes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseNoteResponse"];
+                };
+            };
+            /** @description Unsupported sort property */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseNoteResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseNoteResponse"];
+                };
+            };
+            /** @description Application not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseNoteResponse"];
+                };
+            };
+        };
+    };
+    create_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Note created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NoteResponse"];
+                };
+            };
+            /** @description Invalid request body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NoteResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NoteResponse"];
+                };
+            };
+            /** @description Application not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NoteResponse"];
+                };
+            };
+        };
+    };
     updateStatus: {
         parameters: {
             query?: never;
@@ -1343,6 +1716,59 @@ export interface operations {
             };
         };
     };
+    rate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRatingRequest"];
+            };
+        };
+        responses: {
+            /** @description Rating set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Invalid request body: rating outside 1 to 5 or not a whole number */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description Application not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplicationResponse"];
+                };
+            };
+        };
+    };
     move: {
         parameters: {
             query?: never;
@@ -1414,6 +1840,168 @@ export interface operations {
             };
         };
     };
+    timeToHire: {
+        parameters: {
+            query?: {
+                /** @description Only applications of this job */
+                jobId?: number;
+                /** @description Applications created on or after this day (yyyy-MM-dd) */
+                from?: string;
+                /** @description Applications created on or before this day (yyyy-MM-dd) */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Average days and number of hires */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeToHireResponse"];
+                };
+            };
+            /** @description Invalid jobId or date, or from after to */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeToHireResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeToHireResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeToHireResponse"];
+                };
+            };
+        };
+    };
+    timeInStage: {
+        parameters: {
+            query?: {
+                /** @description Only applications of this job */
+                jobId?: number;
+                /** @description Applications created on or after this day (yyyy-MM-dd) */
+                from?: string;
+                /** @description Applications created on or before this day (yyyy-MM-dd) */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Average hours for the five stages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeInStageResponse"];
+                };
+            };
+            /** @description Invalid jobId or date, or from after to */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeInStageResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeInStageResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimeInStageResponse"];
+                };
+            };
+        };
+    };
+    funnel: {
+        parameters: {
+            query?: {
+                /** @description Only applications of this job */
+                jobId?: number;
+                /** @description Applications created on or after this day (yyyy-MM-dd) */
+                from?: string;
+                /** @description Applications created on or before this day (yyyy-MM-dd) */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Funnel with the five stages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FunnelResponse"];
+                };
+            };
+            /** @description Invalid jobId or date, or from after to */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FunnelResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FunnelResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FunnelResponse"];
+                };
+            };
+        };
+    };
     me: {
         parameters: {
             query?: never;
@@ -1480,6 +2068,103 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["BoardResponse"];
                 };
+            };
+        };
+    };
+    history: {
+        parameters: {
+            query?: {
+                /** @description Zero-based page index (0..N) */
+                page?: number;
+                /** @description The size of the page to be returned */
+                size?: number;
+                /** @description Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. */
+                sort?: string[];
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of stage changes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseStageHistoryResponse"];
+                };
+            };
+            /** @description Unsupported sort property */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseStageHistoryResponse"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseStageHistoryResponse"];
+                };
+            };
+            /** @description Application not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseStageHistoryResponse"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Note deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Neither the author nor an ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Note not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

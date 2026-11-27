@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { moveApplication } from "@/features/board/api";
 import { applyMove } from "@/features/board/board-dnd";
+import { applicationHistoryKey } from "@/features/board/hooks/useHistory";
 import { jobBoardQueryKey } from "@/features/board/hooks/useJobBoard";
 import { httpStatus, moveErrorMessage } from "@/features/board/messages";
 import type { Board, MoveApplicationRequest } from "@/features/board/types";
@@ -17,7 +18,8 @@ export function moveApplicationMutationKey(jobId: number) {
 /**
  * Moves a card in the cached board at once and saves it. A failure restores
  * the board as it was and shows a toast; the board is reloaded from the
- * server once the last move of the job has finished.
+ * server once no move or rating of the job is pending. A rollback may bring
+ * back an older rating for a moment; that final reload corrects it.
  */
 export function useMoveApplication(jobId: number) {
   const queryClient = useQueryClient();
@@ -51,9 +53,14 @@ export function useMoveApplication(jobId: number) {
       }
       toast.error(moveErrorMessage(error));
     },
-    onSettled: (_data, error) => {
-      // This mutation still counts as pending here, so 1 means it is the last one.
-      const last = queryClient.isMutating({ mutationKey }) === 1;
+    onSettled: (_data, error, { applicationId }) => {
+      // A stage change adds a history entry; an open panel must not show the old list.
+      void queryClient.invalidateQueries({
+        queryKey: applicationHistoryKey(applicationId),
+      });
+      // This mutation still counts as pending here, so 1 means it is the last
+      // one. Ratings share the board prefix, so they count too.
+      const last = queryClient.isMutating({ mutationKey: boardKey }) === 1;
       // A vanished card means the board changed elsewhere: reload it anyway.
       if (last || httpStatus(error) === 404) {
         return queryClient.invalidateQueries({ queryKey: boardKey });
