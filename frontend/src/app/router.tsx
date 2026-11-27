@@ -13,6 +13,7 @@ import { EditCandidatePage } from "@/features/candidates/components/EditCandidat
 import { CreateJobPage } from "@/features/jobs/components/CreateJobPage";
 import { EditJobPage } from "@/features/jobs/components/EditJobPage";
 import { JobsPage } from "@/features/jobs/components/JobsPage";
+import { MetricsPage } from "@/features/metrics/components/MetricsPage";
 import { UsersPage } from "@/features/users/components/UsersPage";
 
 // Only in development; the production build drops the page and its import.
@@ -47,6 +48,7 @@ export const routes: RouteObject[] = [
           { path: "candidates/new", element: <CreateCandidatePage /> },
           { path: "candidates/:id", element: <CandidateDetailPage /> },
           { path: "candidates/:id/edit", element: <EditCandidatePage /> },
+          { path: "metrics", element: <MetricsPage /> },
           {
             element: <RequireRole role="ADMIN" />,
             children: [{ path: "users", element: <UsersPage /> }],
