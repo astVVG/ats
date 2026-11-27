@@ -1,12 +1,16 @@
 package io.github.astvvg.ats.application.service;
 
 import io.github.astvvg.ats.application.domain.Application;
+import io.github.astvvg.ats.application.domain.StageHistory;
 import io.github.astvvg.ats.application.dto.ApplicationResponse;
 import io.github.astvvg.ats.application.dto.BoardCandidateResponse;
 import io.github.astvvg.ats.application.dto.BoardCardResponse;
 import io.github.astvvg.ats.application.dto.BoardJobResponse;
+import io.github.astvvg.ats.application.dto.StageHistoryResponse;
+import io.github.astvvg.ats.application.dto.StageHistoryUserResponse;
 import io.github.astvvg.ats.candidate.domain.Candidate;
 import io.github.astvvg.ats.job.domain.Job;
+import io.github.astvvg.ats.user.domain.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -22,4 +26,8 @@ public interface ApplicationMapper {
     BoardCardResponse toBoardCard(Application application);
 
     BoardCandidateResponse toBoardCandidate(Candidate candidate);
+
+    StageHistoryResponse toHistory(StageHistory history);
+
+    StageHistoryUserResponse toHistoryUser(User user);
 }

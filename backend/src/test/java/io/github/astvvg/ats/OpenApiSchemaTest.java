@@ -86,15 +86,139 @@ class OpenApiSchemaTest {
                         "BoardCardResponse",
                         Set.of("id", "position", "candidate", "updatedAt"),
                         Set.of("rating")),
+                Arguments.of("BoardCandidateResponse", Set.of("id", "fullName", "email"), Set.of()),
                 Arguments.of(
-                        "BoardCandidateResponse", Set.of("id", "fullName", "email"), Set.of()));
+                        "NoteResponse",
+                        Set.of("id", "applicationId", "content", "author", "createdAt"),
+                        Set.of()),
+                Arguments.of("NoteAuthorResponse", Set.of("id", "name"), Set.of()),
+                Arguments.of("PageResponseNoteResponse", page, Set.of()),
+                Arguments.of(
+                        "StageHistoryResponse",
+                        Set.of("id", "toStage", "movedBy", "movedAt"),
+                        Set.of("fromStage")),
+                Arguments.of("StageHistoryUserResponse", Set.of("id", "name"), Set.of()),
+                Arguments.of("PageResponseStageHistoryResponse", page, Set.of()));
     }
 
     static Stream<Arguments> newOperations() {
         return Stream.of(
                 Arguments.of("/api/applications", "post", "201", "ApplicationResponse"),
                 Arguments.of("/api/jobs/{id}/board", "get", "200", "BoardResponse"),
-                Arguments.of("/api/applications/{id}/move", "patch", "200", "ApplicationResponse"));
+                Arguments.of("/api/applications/{id}/move", "patch", "200", "ApplicationResponse"),
+                Arguments.of(
+                        "/api/applications/{id}/notes", "get", "200", "PageResponseNoteResponse"),
+                Arguments.of("/api/applications/{id}/notes", "post", "201", "NoteResponse"),
+                Arguments.of(
+                        "/api/applications/{id}/history",
+                        "get",
+                        "200",
+                        "PageResponseStageHistoryResponse"),
+                Arguments.of(
+                        "/api/applications/{id}/rating", "patch", "200", "ApplicationResponse"));
+    }
+
+    static Stream<Arguments> responseCodes() {
+        return Stream.of(
+                Arguments.of(
+                        "/api/applications/{id}/notes", "get", Set.of("200", "400", "401", "404")),
+                Arguments.of(
+                        "/api/applications/{id}/notes", "post", Set.of("201", "400", "401", "404")),
+                Arguments.of("/api/notes/{id}", "delete", Set.of("204", "401", "403", "404")),
+                Arguments.of(
+                        "/api/applications/{id}/history",
+                        "get",
+                        Set.of("200", "400", "401", "404")),
+                Arguments.of(
+                        "/api/applications/{id}/rating",
+                        "patch",
+                        Set.of("200", "400", "401", "404")));
+    }
+
+    @ParameterizedTest(name = "{1} {0}")
+    @MethodSource("responseCodes")
+    void operationDocumentsItsResponseCodes(String path, String method, Set<String> codes) {
+        JsonNode operation = paths.path(path).path(method);
+        assertThat(operation.isMissingNode()).as("%s %s documented", method, path).isFalse();
+        assertThat(operation.path("security").isEmpty())
+                .as("%s %s security", method, path)
+                .isFalse();
+        Set<String> statuses = new HashSet<>();
+        operation.path("responses").fieldNames().forEachRemaining(statuses::add);
+        assertThat(statuses).as("%s %s responses", method, path).isEqualTo(codes);
+    }
+
+    @Test
+    void deleteNoteHasNoResponseBody() {
+        JsonNode noContent =
+                paths.path("/api/notes/{id}").path("delete").path("responses").path("204");
+        assertThat(noContent.isMissingNode()).isFalse();
+        assertThat(noContent.path("content").isMissingNode()).isTrue();
+    }
+
+    @Test
+    void noteRequestIsDocumented() {
+        JsonNode schema = schemas.path("CreateNoteRequest");
+        assertThat(schema.isMissingNode()).isFalse();
+        Set<String> properties = new HashSet<>();
+        schema.path("properties").fieldNames().forEachRemaining(properties::add);
+        Set<String> required = new HashSet<>();
+        schema.path("required").forEach(field -> required.add(field.asText()));
+
+        assertThat(properties).containsExactly("content");
+        assertThat(required).containsExactly("content");
+        assertThat(schema.path("properties").path("content").path("maxLength").asInt())
+                .isEqualTo(2000);
+        assertThat(requestRef("/api/applications/{id}/notes", "post"))
+                .isEqualTo("#/components/schemas/CreateNoteRequest");
+    }
+
+    @Test
+    void ratingRequestIsDocumentedAsOptionalNullableAndBounded() {
+        JsonNode schema = schemas.path("UpdateRatingRequest");
+        assertThat(schema.isMissingNode()).isFalse();
+        Set<String> properties = new HashSet<>();
+        schema.path("properties").fieldNames().forEachRemaining(properties::add);
+        JsonNode rating = schema.path("properties").path("rating");
+
+        assertThat(properties).containsExactly("rating");
+        assertThat(schema.path("required").isEmpty()).isTrue();
+        assertThat(isNullable(rating)).isTrue();
+        assertThat(rating.path("minimum").asInt()).isEqualTo(1);
+        assertThat(rating.path("maximum").asInt()).isEqualTo(5);
+        assertThat(schema.path("description").asText()).contains("{}");
+        assertThat(
+                        paths.path("/api/applications/{id}/rating")
+                                .path("patch")
+                                .path("description")
+                                .asText())
+                .contains("{}");
+        assertThat(requestRef("/api/applications/{id}/rating", "patch"))
+                .isEqualTo("#/components/schemas/UpdateRatingRequest");
+    }
+
+    @Test
+    void pagedNoteAndHistoryListsDocumentTheirPageParameters() {
+        for (String path :
+                List.of("/api/applications/{id}/notes", "/api/applications/{id}/history")) {
+            Set<String> parameters = new HashSet<>();
+            paths.path(path)
+                    .path("get")
+                    .path("parameters")
+                    .forEach(p -> parameters.add(p.path("name").asText()));
+            assertThat(parameters).as("%s parameters", path).contains("id", "page", "size", "sort");
+        }
+    }
+
+    private String requestRef(String path, String method) {
+        return paths.path(path)
+                .path(method)
+                .path("requestBody")
+                .path("content")
+                .path("application/json")
+                .path("schema")
+                .path("$ref")
+                .asText();
     }
 
     @Test
