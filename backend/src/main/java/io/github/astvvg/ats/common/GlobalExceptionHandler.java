@@ -127,6 +127,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(body);
     }
 
+    @ExceptionHandler(InvalidFieldException.class)
+    ResponseEntity<ProblemDetail> handleInvalidField(InvalidFieldException ex) {
+        return problem(
+                validationProblem(List.of(new FieldViolation(ex.getField(), ex.getMessage()))));
+    }
+
     @ExceptionHandler(BusinessConflictException.class)
     ResponseEntity<ProblemDetail> handleConflict(BusinessConflictException ex) {
         ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());

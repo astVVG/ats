@@ -310,6 +310,28 @@ class CandidateIntegrationTest {
         createCandidate(adminAuth, "Again", email("bye"));
     }
 
+    @Test
+    void deleteCandidateWithApplicationsIsConflict() throws Exception {
+        long id = createCandidate(adminAuth, "Applied", email("applied"));
+        long jobId =
+                json(send(post("/api/jobs"), adminAuth, "{\"title\":\"Job " + token + "\"}")
+                                .andExpect(status().isCreated()))
+                        .get("id")
+                        .asLong();
+        send(
+                        post("/api/applications"),
+                        recruiterAuth,
+                        "{\"jobId\":" + jobId + ",\"candidateId\":" + id + "}")
+                .andExpect(status().isCreated());
+
+        ResultActions result = perform(delete(CANDIDATES + "/" + id), adminAuth);
+
+        assertProblem(result, 409);
+        result.andExpect(
+                jsonPath("$.detail").value("Candidate has applications and cannot be deleted"));
+        perform(get(CANDIDATES + "/" + id), adminAuth).andExpect(status().isOk());
+    }
+
     // ---- GET /api/candidates ----
 
     @Test

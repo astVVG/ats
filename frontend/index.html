@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mini ATS</title>
+    <script>
+      // Applies the saved theme before the first paint; mirrors src/shared/theme/theme.ts.
+      (function () {
+        var theme = "light";
+        try {
+          var stored = localStorage.getItem("ats.theme");
+          var dark =
+            stored === "dark" ||
+            (stored !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          theme = dark ? "dark" : "light";
+        } catch (e) {
+          theme = "light";
+        }
+        var root = document.documentElement;
+        if (theme === "dark") {
+          root.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+        }
+        root.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

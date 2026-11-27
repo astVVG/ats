@@ -5,6 +5,7 @@ import { NotFoundPage } from "@/app/pages/NotFoundPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import { RequireRole } from "@/features/auth/components/RequireRole";
+import { BoardPage } from "@/features/board/components/BoardPage";
 import { CandidateDetailPage } from "@/features/candidates/components/CandidateDetailPage";
 import { CandidatesPage } from "@/features/candidates/components/CandidatesPage";
 import { CreateCandidatePage } from "@/features/candidates/components/CreateCandidatePage";
@@ -13,6 +14,20 @@ import { CreateJobPage } from "@/features/jobs/components/CreateJobPage";
 import { EditJobPage } from "@/features/jobs/components/EditJobPage";
 import { JobsPage } from "@/features/jobs/components/JobsPage";
 import { UsersPage } from "@/features/users/components/UsersPage";
+
+// Only in development; the production build drops the page and its import.
+const devRoutes: RouteObject[] = import.meta.env.DEV
+  ? [
+      {
+        path: "dev/theme",
+        lazy: async () => {
+          const { ThemePreviewPage } =
+            await import("@/app/pages/ThemePreviewPage");
+          return { Component: ThemePreviewPage };
+        },
+      },
+    ]
+  : [];
 
 export const routes: RouteObject[] = [
   { path: "/login", element: <LoginPage /> },
@@ -27,6 +42,7 @@ export const routes: RouteObject[] = [
           { path: "jobs", element: <JobsPage /> },
           { path: "jobs/new", element: <CreateJobPage /> },
           { path: "jobs/:id/edit", element: <EditJobPage /> },
+          { path: "jobs/:id/board", element: <BoardPage /> },
           { path: "candidates", element: <CandidatesPage /> },
           { path: "candidates/new", element: <CreateCandidatePage /> },
           { path: "candidates/:id", element: <CandidateDetailPage /> },
@@ -35,6 +51,7 @@ export const routes: RouteObject[] = [
             element: <RequireRole role="ADMIN" />,
             children: [{ path: "users", element: <UsersPage /> }],
           },
+          ...devRoutes,
           { path: "*", element: <NotFoundPage /> },
         ],
       },

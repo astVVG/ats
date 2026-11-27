@@ -170,6 +170,9 @@ export function JobsPage() {
                   <TableCell>
                     <div className="flex justify-end gap-2">
                       <Button asChild variant="outline" size="sm">
+                        <Link to={`/jobs/${job.id}/board`}>Ver tablero</Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
                         <Link to={`/jobs/${job.id}/edit`}>Editar</Link>
                       </Button>
                       {job.status === "OPEN" && (

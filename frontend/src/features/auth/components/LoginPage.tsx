@@ -7,6 +7,7 @@ import { z } from "zod";
 import { useLogin } from "@/features/auth/hooks/useLogin";
 import { useSessionStore } from "@/features/auth/store";
 import { getProblemDetail } from "@/shared/api/errors";
+import { ThemeToggle } from "@/shared/components/ThemeToggle";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import {
@@ -98,7 +99,8 @@ export function LoginPage() {
   const isSubmitting = loginMutation.isPending;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
+    <main className="relative flex min-h-screen items-center justify-center px-4">
+      <ThemeToggle className="absolute top-4 right-4" />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>
