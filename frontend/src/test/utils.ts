@@ -7,7 +7,12 @@ import { Providers } from "@/app/providers";
 import { routes } from "@/app/router";
 import { useSessionStore } from "@/features/auth/store";
 import type { LoginResponse, User } from "@/features/auth/types";
-import type { Board, BoardCard } from "@/features/board/types";
+import type {
+  Board,
+  BoardCard,
+  Note,
+  StageHistoryEntry,
+} from "@/features/board/types";
 import type { Candidate } from "@/features/candidates/types";
 import type { Job } from "@/features/jobs/types";
 import { STAGES, type Stage } from "@/shared/lib/stages";
@@ -66,11 +71,14 @@ export function signOut() {
 }
 
 /** Renders the app routes at `path` inside the Providers. */
-export function renderRoute(path: string) {
+export function renderRoute(
+  path: string,
+  queryClient: QueryClient = createTestQueryClient(),
+) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(
     createElement(Providers, {
-      queryClient: createTestQueryClient(),
+      queryClient,
       children: createElement(RouterProvider, { router }),
     }),
   );
@@ -139,6 +147,30 @@ export function buildBoard({
         position,
       })),
     })),
+  };
+}
+
+export function buildNote(overrides: Partial<Note> = {}): Note {
+  return {
+    id: 500,
+    applicationId: 100,
+    content: "Buena entrevista técnica.",
+    author: { id: recruiterUser.id, name: recruiterUser.name },
+    createdAt: "2026-04-12T15:30:00Z",
+    ...overrides,
+  };
+}
+
+export function buildHistoryEntry(
+  overrides: Partial<StageHistoryEntry> = {},
+): StageHistoryEntry {
+  return {
+    id: 900,
+    fromStage: null,
+    toStage: "APPLIED",
+    movedBy: { id: recruiterUser.id, name: recruiterUser.name },
+    movedAt: "2026-04-10T10:00:00Z",
+    ...overrides,
   };
 }
 

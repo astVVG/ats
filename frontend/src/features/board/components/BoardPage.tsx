@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { isAxiosError } from "axios";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -26,7 +26,9 @@ import {
   previewMove,
   resolveDrop,
 } from "@/features/board/board-dnd";
+import { findCard } from "@/features/board/board-cache";
 import { AddApplicationDialog } from "@/features/board/components/AddApplicationDialog";
+import { ApplicationDetailSheet } from "@/features/board/components/ApplicationDetailSheet";
 import { BoardCardOverlay } from "@/features/board/components/BoardCard";
 import { BoardColumn } from "@/features/board/components/BoardColumn";
 import { useJobBoard } from "@/features/board/hooks/useJobBoard";
@@ -94,6 +96,9 @@ function JobBoard({ jobId }: { jobId: number }) {
   );
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [overStage, setOverStage] = useState<Stage | null>(null);
+  // Only the id: stage and rating are read from the cached board on each render.
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const lastOpenedId = useRef<number | null>(null);
   const sensors = useSensors(
     // A short distance keeps clicks on the candidate link working.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -133,6 +138,11 @@ function JobBoard({ jobId }: { jobId: number }) {
   }
 
   const board = query.data;
+  const selected = selectedId === null ? null : findCard(board, selectedId);
+  if (selectedId !== null && selected === null) {
+    // The application left the board (deleted or moved to another job): close.
+    setSelectedId(null);
+  }
   const serverColumns = board.columns;
   const columns = dragColumns ?? serverColumns;
   const closed = board.job.status === "CLOSED";
@@ -147,6 +157,17 @@ function JobBoard({ jobId }: { jobId: number }) {
       : columns
           .flatMap((column) => column.applications)
           .find((card) => card.id === activeId);
+
+  function openDetail(applicationId: number) {
+    lastOpenedId.current = applicationId;
+    setSelectedId(applicationId);
+  }
+
+  function detailTrigger() {
+    return document.querySelector<HTMLElement>(
+      `[data-detail-trigger="${lastOpenedId.current}"]`,
+    );
+  }
 
   function reset() {
     setActiveId(null);
@@ -299,7 +320,8 @@ function JobBoard({ jobId }: { jobId: number }) {
       {closed && (
         <Alert>
           <AlertDescription>
-            Vacante cerrada: el tablero es de solo lectura.
+            Vacante cerrada: no se pueden mover ni agregar postulaciones. Las
+            notas y la calificación siguen disponibles.
           </AlertDescription>
         </Alert>
       )}
@@ -320,6 +342,8 @@ function JobBoard({ jobId }: { jobId: number }) {
               column={column}
               highlighted={activeId !== null && overStage === column.stage}
               dragDisabled={dragDisabled}
+              onOpenDetail={openDetail}
+              jobId={jobId}
             />
           ))}
         </div>
@@ -327,6 +351,13 @@ function JobBoard({ jobId }: { jobId: number }) {
           {activeCard ? <BoardCardOverlay card={activeCard} /> : null}
         </DragOverlay>
       </DndContext>
+
+      <ApplicationDetailSheet
+        jobId={jobId}
+        selected={selected}
+        onClose={() => setSelectedId(null)}
+        returnFocusTo={detailTrigger}
+      />
     </section>
   );
 }
