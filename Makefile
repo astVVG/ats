@@ -11,10 +11,10 @@ setup: ## Install root tooling (git hooks) and frontend dependencies
 	npm install
 	cd frontend && npm install
 
-db-up: ## Start the development Postgres
+db-up: ## Start the development MySQL
 	$(COMPOSE) up -d
 
-db-down: ## Stop the development Postgres (keeps data)
+db-down: ## Stop the development MySQL (keeps data)
 	$(COMPOSE) down
 
 run-back: ## Run the backend (dev profile)

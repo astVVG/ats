@@ -9,10 +9,15 @@ import com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import io.github.astvvg.ats.application.domain.Stage;
 import io.github.astvvg.ats.support.TestUsers;
 import jakarta.persistence.EntityManager;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.ArgumentPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -42,9 +47,8 @@ final class MetricsFixtures {
     }
 
     long job(String status) {
-        return jdbcTemplate.queryForObject(
-                "INSERT INTO jobs (title, status, created_by) VALUES ('Metrics', ?, ?) RETURNING id",
-                Long.class,
+        return insert(
+                "INSERT INTO jobs (title, status, created_by) VALUES ('Metrics', ?, ?)",
                 status,
                 userId);
     }
@@ -57,17 +61,15 @@ final class MetricsFixtures {
     /** Same, with an initial moved_at that may differ slightly from created_at. */
     Card apply(long jobId, String createdAt, String initialMovedAt) {
         long candidateId =
-                jdbcTemplate.queryForObject(
-                        "INSERT INTO candidates (full_name, email) VALUES ('Cand', ?) RETURNING id",
-                        Long.class,
+                insert(
+                        "INSERT INTO candidates (full_name, email) VALUES ('Cand', ?)",
                         TestUsers.uniqueEmail("metrics"));
         Timestamp created = at(createdAt);
         long id =
-                jdbcTemplate.queryForObject(
+                insert(
                         "INSERT INTO applications"
                                 + " (job_id, candidate_id, stage, position, created_at, updated_at)"
-                                + " VALUES (?, ?, 'APPLIED', 0, ?, ?) RETURNING id",
-                        Long.class,
+                                + " VALUES (?, ?, 'APPLIED', 0, ?, ?)",
                         jobId,
                         candidateId,
                         created,
@@ -115,6 +117,19 @@ final class MetricsFixtures {
         move(c, Stage.HIRED, "2026-01-22T12:00:00Z");
 
         apply(jobId, "2026-02-05T12:00:00Z");
+    }
+
+    private long insert(String sql, Object... args) {
+        KeyHolder keys = new GeneratedKeyHolder();
+        jdbcTemplate.update(
+                connection -> {
+                    PreparedStatement statement =
+                            connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                    new ArgumentPreparedStatementSetter(args).setValues(statement);
+                    return statement;
+                },
+                keys);
+        return keys.getKey().longValue();
     }
 
     private static Timestamp at(String instant) {

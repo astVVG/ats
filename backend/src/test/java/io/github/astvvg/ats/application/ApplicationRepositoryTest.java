@@ -180,7 +180,7 @@ class ApplicationRepositoryTest {
         assertThat(
                         jdbcTemplate.queryForList(
                                 "SELECT constraint_name FROM information_schema.table_constraints"
-                                        + " WHERE table_name = 'applications'",
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'applications'",
                                 String.class))
                 .contains(
                         "uq_applications_job_candidate",
@@ -192,7 +192,7 @@ class ApplicationRepositoryTest {
         assertThat(
                         jdbcTemplate.queryForList(
                                 "SELECT constraint_name FROM information_schema.table_constraints"
-                                        + " WHERE table_name = 'stage_history'",
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'stage_history'",
                                 String.class))
                 .contains(
                         "ck_stage_history_from_stage",
@@ -201,8 +201,9 @@ class ApplicationRepositoryTest {
                         "fk_stage_history_moved_by");
         assertThat(
                         jdbcTemplate.queryForObject(
-                                "SELECT count(*) FROM pg_indexes WHERE tablename = 'applications'"
-                                        + " AND indexname = 'idx_applications_job_stage_position'",
+                                "SELECT count(DISTINCT index_name) FROM information_schema.statistics"
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'applications'"
+                                        + " AND index_name = 'idx_applications_job_stage_position'",
                                 Integer.class))
                 .isEqualTo(1);
     }

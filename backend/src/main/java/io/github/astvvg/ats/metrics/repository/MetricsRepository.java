@@ -10,21 +10,18 @@ import org.hibernate.query.NativeQuery;
 import org.hibernate.type.StandardBasicTypes;
 import org.springframework.stereotype.Repository;
 
-/** Aggregates in PostgreSQL; each method runs exactly one query whatever the amount of data. */
+/** Aggregates in MySQL; each method runs exactly one query whatever the amount of data. */
 @Repository
 public class MetricsRepository {
 
     /** Sum of the finished stays of one stage, in seconds, and how many there were. */
     public record StageDurations(BigDecimal totalSeconds, long samples) {}
 
-    // Null filters are cast so PostgreSQL always knows the parameter types.
     private static final String FILTER =
             """
-            (CAST(:jobId AS BIGINT) IS NULL OR a.job_id = CAST(:jobId AS BIGINT))
-            AND (CAST(:createdFrom AS TIMESTAMPTZ) IS NULL
-                 OR a.created_at >= CAST(:createdFrom AS TIMESTAMPTZ))
-            AND (CAST(:createdBefore AS TIMESTAMPTZ) IS NULL
-                 OR a.created_at < CAST(:createdBefore AS TIMESTAMPTZ))
+            (:jobId IS NULL OR a.job_id = :jobId)
+            AND (:createdFrom IS NULL OR a.created_at >= :createdFrom)
+            AND (:createdBefore IS NULL OR a.created_at < :createdBefore)
             """;
 
     private static final String REACHED =
@@ -40,7 +37,7 @@ public class MetricsRepository {
     // The filter selects whole applications, so every window sees their complete history.
     private static final String FINISHED_STAYS =
             """
-            SELECT s.stage, SUM(EXTRACT(EPOCH FROM s.left_at - s.entered_at)), COUNT(*)
+            SELECT s.stage, SUM(TIMESTAMPDIFF(MICROSECOND, s.entered_at, s.left_at)), COUNT(*)
             FROM (
                 SELECT h.to_stage AS stage,
                        h.moved_at AS entered_at,
@@ -57,7 +54,7 @@ public class MetricsRepository {
 
     private static final String TIME_TO_HIRE =
             """
-            SELECT SUM(EXTRACT(EPOCH FROM t.first_hired_at - t.created_at)), COUNT(*)
+            SELECT SUM(TIMESTAMPDIFF(MICROSECOND, t.created_at, t.first_hired_at)), COUNT(*)
             FROM (
                 SELECT a.created_at, MIN(h.moved_at) AS first_hired_at
                 FROM applications a
@@ -89,7 +86,7 @@ public class MetricsRepository {
         for (Object[] row : rows(FINISHED_STAYS, filter)) {
             stays.put(
                     Stage.valueOf((String) row[0]),
-                    new StageDurations(decimal(row[1]), ((Number) row[2]).longValue()));
+                    new StageDurations(seconds(row[1]), ((Number) row[2]).longValue()));
         }
         return stays;
     }
@@ -97,7 +94,7 @@ public class MetricsRepository {
     /** Seconds from creation to the first arrival in HIRED, summed over hired applications. */
     public StageDurations timeToHire(MetricsFilter filter) {
         Object[] row = rows(TIME_TO_HIRE, filter).getFirst();
-        return new StageDurations(decimal(row[0]), ((Number) row[1]).longValue());
+        return new StageDurations(seconds(row[0]), ((Number) row[1]).longValue());
     }
 
     @SuppressWarnings("unchecked")
@@ -110,10 +107,11 @@ public class MetricsRepository {
         return query.getResultList();
     }
 
-    private static BigDecimal decimal(Object value) {
-        if (value == null) {
+    // The database sums whole microseconds so that no fraction of a second is lost.
+    private static BigDecimal seconds(Object microseconds) {
+        if (microseconds == null) {
             return null;
         }
-        return value instanceof BigDecimal decimal ? decimal : new BigDecimal(value.toString());
+        return new BigDecimal(microseconds.toString()).movePointLeft(6);
     }
 }

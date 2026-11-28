@@ -2,7 +2,7 @@ package io.github.astvvg.ats.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +36,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -89,24 +90,33 @@ class ApplicationRatingConcurrencyIntegrationTest {
         return cards;
     }
 
-    private record Request(String path, String body) {}
+    private record Request(HttpMethod method, String path, String body) {}
 
     private static Request move(Application application, Stage stage, int position) {
         return new Request(
+                HttpMethod.PATCH,
                 "/api/applications/" + application.getId() + "/move",
                 "{\"stage\":\"" + stage + "\",\"position\":" + position + "}");
     }
 
     private static Request rate(Application application, int rating) {
         return new Request(
+                HttpMethod.PATCH,
                 "/api/applications/" + application.getId() + "/rating",
                 "{\"rating\":" + rating + "}");
+    }
+
+    private static Request note(Application application) {
+        return new Request(
+                HttpMethod.POST,
+                "/api/applications/" + application.getId() + "/notes",
+                "{\"content\":\"Concurrent note\"}");
     }
 
     private Callable<MockHttpServletResponse> call(Request request, String auth) {
         return () ->
                 mockMvc.perform(
-                                patch(request.path())
+                                request(request.method(), request.path())
                                         .header(HttpHeaders.AUTHORIZATION, auth)
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(request.body()))
@@ -226,6 +236,34 @@ class ApplicationRatingConcurrencyIntegrationTest {
                     .as("rating of card %d", i)
                     .isEqualTo(i < THREADS / 2 ? (Object) (i + 1) : null);
             assertThat(historyCount(interview.get(i))).isZero();
+        }
+    }
+
+    @Test
+    void notesAddedWhileTheSameCardsAreMovedAndRatedAreAllKept() throws Exception {
+        List<Application> applied = column(Stage.APPLIED, 2);
+        column(Stage.OFFER, 2);
+        List<Request> requests = new ArrayList<>();
+        for (Application card : applied) {
+            requests.add(move(card, Stage.OFFER, 0));
+            requests.add(note(card));
+            requests.add(rate(card, 5));
+        }
+
+        assertThat(runConcurrently(requests)).containsExactly(200, 201, 200, 200, 201, 200);
+
+        Map<Stage, Integer> sizes = assertContiguousColumns();
+        assertThat(sizes.get(Stage.APPLIED)).isZero();
+        assertThat(sizes.get(Stage.OFFER)).isEqualTo(4);
+        for (Application card : applied) {
+            assertThat(row(card).get("rating")).isEqualTo(5);
+            assertThat(historyCount(card)).isEqualTo(1);
+            assertThat(
+                            jdbcTemplate.queryForObject(
+                                    "SELECT count(*) FROM notes WHERE application_id = ?",
+                                    Integer.class,
+                                    card.getId()))
+                    .isEqualTo(1);
         }
     }
 

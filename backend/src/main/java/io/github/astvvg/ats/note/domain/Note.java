@@ -48,7 +48,7 @@ public class Note {
         this.content = content;
     }
 
-    // Truncated to the precision of TIMESTAMPTZ so responses match what is stored.
+    // Truncated to the precision of DATETIME(6) so responses match what is stored.
     @PrePersist
     void onCreate() {
         createdAt = Instant.now().truncatedTo(ChronoUnit.MICROS);

@@ -32,17 +32,29 @@ class DatabaseContextTest {
     }
 
     @Test
-    void databaseIsPostgres16() {
+    void databaseIsMysql84() {
         assertThat(jdbcTemplate.queryForObject("SELECT version()", String.class))
-                .startsWith("PostgreSQL 16");
+                .startsWith("8.4.");
+    }
+
+    @Test
+    void sessionsUseUtcAndReadCommitted() {
+        assertThat(jdbcTemplate.queryForObject("SELECT @@session.time_zone", String.class))
+                .isEqualTo("+00:00");
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                "SELECT @@session.transaction_isolation", String.class))
+                .isEqualTo("READ-COMMITTED");
     }
 
     @Test
     void flywayHistoryTableExists() {
-        Boolean exists =
-                jdbcTemplate.queryForObject(
-                        "SELECT to_regclass('public.flyway_schema_history') IS NOT NULL",
-                        Boolean.class);
-        assertThat(exists).isTrue();
+        assertThat(
+                        jdbcTemplate.queryForObject(
+                                "SELECT count(*) FROM information_schema.tables"
+                                        + " WHERE table_schema = DATABASE()"
+                                        + " AND table_name = 'flyway_schema_history'",
+                                Integer.class))
+                .isEqualTo(1);
     }
 }

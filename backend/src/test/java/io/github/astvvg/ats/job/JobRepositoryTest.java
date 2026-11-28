@@ -101,13 +101,14 @@ class JobRepositoryTest {
         assertThat(
                         jdbcTemplate.queryForList(
                                 "SELECT constraint_name FROM information_schema.table_constraints"
-                                        + " WHERE table_name = 'jobs'",
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'jobs'",
                                 String.class))
                 .contains("ck_jobs_status", "fk_jobs_created_by");
         assertThat(
                         jdbcTemplate.queryForObject(
-                                "SELECT count(*) FROM pg_indexes WHERE tablename = 'jobs'"
-                                        + " AND indexname = 'idx_jobs_status'",
+                                "SELECT count(DISTINCT index_name) FROM information_schema.statistics"
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'jobs'"
+                                        + " AND index_name = 'idx_jobs_status'",
                                 Integer.class))
                 .isEqualTo(1);
     }

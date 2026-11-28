@@ -14,6 +14,7 @@ import io.github.astvvg.ats.user.domain.User;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -139,6 +140,18 @@ class MetricsTimeToHireIntegrationTest {
 
         assertThat(summary(timeToHire("?jobId=" + job))).isEqualTo("0.06/2");
         assertThat(summary(timeToHire("?jobId=" + other))).isEqualTo("0.13/1");
+    }
+
+    @Test
+    void fractionsOfASecondSurviveTheSum() throws Exception {
+        // 431.6 s and 432.4 s average exactly 432 s, which is 0.005 days and rounds up to 0.01;
+        // dropping the fractions would give 431.5 s and 0.00.
+        for (String movedAt : List.of("2026-04-01T00:07:11.6Z", "2026-04-01T00:07:12.4Z")) {
+            Card card = fixtures.apply(job, "2026-04-01T00:00:00Z");
+            fixtures.move(card, Stage.HIRED, movedAt);
+        }
+
+        assertThat(summary(timeToHire("?jobId=" + job))).isEqualTo("0.01/2");
     }
 
     @Test

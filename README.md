@@ -8,7 +8,7 @@ Mini ATS es un sistema de seguimiento de candidatos (Applicant Tracking System) 
 | ------------- | ----------------------------------- |
 | Backend       | Spring Boot 3, Java 21, Maven       |
 | Frontend      | React, TypeScript                   |
-| Base de datos | PostgreSQL 16 (esquema con Flyway)  |
+| Base de datos | MySQL 8.4 (esquema con Flyway)      |
 
 ## Estructura
 
@@ -30,8 +30,8 @@ Para preparar el entorno local (hooks de git y atajos de `make`), consulta [Herr
 
 ## Base de datos de desarrollo
 
-1. Copia `.env.example` a `.env` y asigna una contraseña en `DB_PASSWORD`. El `.env` también define `JWT_SECRET` (valor aleatorio de al menos 32 caracteres) y las variables `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NAME` del administrador inicial, que se crea al arrancar si no existe.
-2. Levanta PostgreSQL 16:
+1. Copia `.env.example` a `.env` y asigna contraseñas en `DB_PASSWORD` y `DB_ROOT_PASSWORD`; ambas son obligatorias. El `.env` también define `JWT_SECRET` (valor aleatorio de al menos 32 caracteres) y las variables `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NAME` del administrador inicial, que se crea al arrancar si no existe.
+2. Levanta MySQL 8.4:
 
    ```bash
    docker compose -f docker-compose.dev.yml up -d

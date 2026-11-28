@@ -118,26 +118,27 @@ class NoteRepositoryTest {
         assertThat(
                         jdbcTemplate.queryForList(
                                 "SELECT constraint_name FROM information_schema.table_constraints"
-                                        + " WHERE table_name = 'notes'",
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'notes'",
                                 String.class))
                 .contains("fk_notes_application", "fk_notes_author");
         assertThat(
                         jdbcTemplate.queryForList(
                                 "SELECT delete_rule FROM information_schema.referential_constraints"
-                                        + " WHERE constraint_name IN"
+                                        + " WHERE constraint_schema = DATABASE() AND constraint_name IN"
                                         + " ('fk_notes_application', 'fk_notes_author')",
                                 String.class))
                 .containsOnly("NO ACTION");
         assertThat(
                         jdbcTemplate.queryForObject(
-                                "SELECT count(*) FROM pg_indexes WHERE tablename = 'notes'"
-                                        + " AND indexname = 'idx_notes_application_id'",
+                                "SELECT count(DISTINCT index_name) FROM information_schema.statistics"
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'notes'"
+                                        + " AND index_name = 'idx_notes_application_id'",
                                 Integer.class))
                 .isEqualTo(1);
         assertThat(
                         jdbcTemplate.queryForObject(
                                 "SELECT character_maximum_length FROM information_schema.columns"
-                                        + " WHERE table_name = 'notes' AND column_name = 'content'",
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'notes' AND column_name = 'content'",
                                 Integer.class))
                 .isEqualTo(Note.MAX_CONTENT_LENGTH);
     }
@@ -146,10 +147,13 @@ class NoteRepositoryTest {
     void ratingCheckFromV4IsTheOnlyOne() {
         List<String> checks =
                 jdbcTemplate.queryForList(
-                        "SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c"
-                                + " JOIN pg_class t ON t.oid = c.conrelid"
-                                + " WHERE t.relname = 'applications' AND c.contype = 'c'"
-                                + " AND pg_get_constraintdef(c.oid) LIKE '%rating%'",
+                        "SELECT cc.check_clause FROM information_schema.check_constraints cc"
+                                + " JOIN information_schema.table_constraints tc"
+                                + " ON tc.constraint_schema = cc.constraint_schema"
+                                + " AND tc.constraint_name = cc.constraint_name"
+                                + " WHERE tc.table_schema = DATABASE()"
+                                + " AND tc.table_name = 'applications'"
+                                + " AND cc.check_clause LIKE '%rating%'",
                         String.class);
 
         assertThat(checks).hasSize(1);
@@ -166,7 +170,7 @@ class NoteRepositoryTest {
             assertThat(currentVersion(schema)).isEqualTo("5");
             assertThat(tableExists(schema, "notes")).isTrue();
         } finally {
-            jdbcTemplate.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+            jdbcTemplate.execute("DROP DATABASE IF EXISTS " + schema);
         }
     }
 
@@ -228,7 +232,7 @@ class NoteRepositoryTest {
                                     "SELECT count(*) FROM " + schema + ".notes", Integer.class))
                     .isEqualTo(1);
         } finally {
-            jdbcTemplate.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+            jdbcTemplate.execute("DROP DATABASE IF EXISTS " + schema);
         }
     }
 

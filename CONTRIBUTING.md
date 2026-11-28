@@ -180,8 +180,8 @@ Reglas de commitlint:
 | ------------ | --------------------------------------------------------------- |
 | `help`       | Lista los objetivos disponibles (objetivo por defecto).         |
 | `setup`      | Instala las herramientas de la raíz (hooks) y el frontend.      |
-| `db-up`      | Levanta el Postgres de desarrollo.                              |
-| `db-down`    | Detiene el Postgres de desarrollo sin borrar los datos.         |
+| `db-up`      | Levanta el MySQL de desarrollo.                                 |
+| `db-down`    | Detiene el MySQL de desarrollo sin borrar los datos.            |
 | `run-back`   | Ejecuta el backend con el perfil `dev`.                         |
 | `run-front`  | Ejecuta el servidor de desarrollo del frontend.                 |
 | `test`       | Ejecuta `test-back` y `test-front`.                             |

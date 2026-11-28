@@ -171,6 +171,18 @@ class MetricsTimeInStageIntegrationTest {
     }
 
     @Test
+    void fractionsOfASecondSurviveTheSum() throws Exception {
+        // 17.6 s and 18.4 s average exactly 18 s, which is 0.005 h and rounds up to 0.01;
+        // dropping the fractions would give 17.5 s and 0.00.
+        for (String movedAt : List.of("2026-04-01T00:00:17.6Z", "2026-04-01T00:00:18.4Z")) {
+            Card card = fixtures.apply(job, "2026-04-01T00:00:00Z");
+            fixtures.move(card, Stage.INTERVIEW, movedAt);
+        }
+
+        assertThat(summary(timeInStage("?jobId=" + job)).getFirst()).isEqualTo("0.01/2");
+    }
+
+    @Test
     void movesOutsideTheRangeStillCountForAnIncludedApplication() throws Exception {
         Card card = fixtures.apply(job, "2026-05-31T12:00:00Z");
         fixtures.move(card, Stage.INTERVIEW, "2026-07-01T12:00:00Z");

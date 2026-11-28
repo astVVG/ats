@@ -356,6 +356,14 @@ class CandidateIntegrationTest {
     }
 
     @Test
+    void listSearchIgnoresCaseButNotAccents() throws Exception {
+        createCandidate(adminAuth, "José " + token, email("jose"));
+
+        assertThat(names(list(adminAuth, "q", "JOSÉ " + token))).containsExactly("José " + token);
+        assertThat(names(list(adminAuth, "q", "jose " + token))).isEmpty();
+    }
+
+    @Test
     void listSortsByAllowedProperties() throws Exception {
         createCandidate(adminAuth, "B " + token, "c-" + token + "@example.com");
         createCandidate(adminAuth, "C " + token, "a-" + token + "@example.com");
