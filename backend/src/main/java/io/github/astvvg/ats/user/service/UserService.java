@@ -1,6 +1,7 @@
 package io.github.astvvg.ats.user.service;
 
 import io.github.astvvg.ats.common.BusinessConflictException;
+import io.github.astvvg.ats.common.ConstraintViolations;
 import io.github.astvvg.ats.common.PageResponse;
 import io.github.astvvg.ats.common.ResourceNotFoundException;
 import io.github.astvvg.ats.user.domain.User;
@@ -9,7 +10,6 @@ import io.github.astvvg.ats.user.dto.UpdateUserStatusRequest;
 import io.github.astvvg.ats.user.dto.UserResponse;
 import io.github.astvvg.ats.user.repository.UserRepository;
 import java.util.Set;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -67,7 +67,7 @@ public class UserService {
             return userMapper.toResponse(userRepository.saveAndFlush(user));
         } catch (DataIntegrityViolationException ex) {
             // A concurrent request may insert the same email between the check and the insert.
-            if (violatesEmailConstraint(ex)) {
+            if (ConstraintViolations.violates(ex, EMAIL_CONSTRAINT)) {
                 throw new BusinessConflictException(EMAIL_TAKEN);
             }
             throw ex;
@@ -86,15 +86,5 @@ public class UserService {
         }
         user.setActive(active);
         return userMapper.toResponse(user);
-    }
-
-    private static boolean violatesEmailConstraint(Throwable ex) {
-        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof ConstraintViolationException violation
-                    && EMAIL_CONSTRAINT.equalsIgnoreCase(violation.getConstraintName())) {
-                return true;
-            }
-        }
-        return false;
     }
 }

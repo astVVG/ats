@@ -23,6 +23,8 @@ import io.github.astvvg.ats.user.domain.Role;
 import io.github.astvvg.ats.user.domain.User;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -238,6 +240,11 @@ class ApplicationRatingIntegrationTest {
         assertThat(row(target)).isEqualTo(before);
     }
 
+    /** MySQL hands DATETIME columns over as the stored local value, which is UTC. */
+    private static Instant storedInstant(Map<String, Object> row) {
+        return ((LocalDateTime) row.get("updated_at")).toInstant(ZoneOffset.UTC);
+    }
+
     @Test
     void sameValueChangesNothingNotEvenUpdatedAt() throws Exception {
         setRating(target, 3);
@@ -247,8 +254,7 @@ class ApplicationRatingIntegrationTest {
                 json(rate(target.getId(), "{\"rating\":3}", recruiter).andExpect(status().isOk()));
 
         assertThat(row(target)).isEqualTo(before);
-        assertThat(Instant.parse(body.get("updatedAt").asText()))
-                .isEqualTo(((java.sql.Timestamp) before.get("updated_at")).toInstant());
+        assertThat(Instant.parse(body.get("updatedAt").asText())).isEqualTo(storedInstant(before));
     }
 
     @Test
@@ -274,8 +280,8 @@ class ApplicationRatingIntegrationTest {
         assertThat(after.get("rating")).isEqualTo(4);
         assertThat(after.get("stage")).isEqualTo(before.get("stage"));
         assertThat(after.get("position")).isEqualTo(before.get("position"));
-        Instant updatedBefore = ((java.sql.Timestamp) before.get("updated_at")).toInstant();
-        Instant updatedAfter = ((java.sql.Timestamp) after.get("updated_at")).toInstant();
+        Instant updatedBefore = storedInstant(before);
+        Instant updatedAfter = storedInstant(after);
         assertThat(updatedAfter).isAfter(updatedBefore);
         assertThat(Instant.parse(body.get("updatedAt").asText())).isEqualTo(updatedAfter);
         assertThat(row(first)).isEqualTo(firstBefore);

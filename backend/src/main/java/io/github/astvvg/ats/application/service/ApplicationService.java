@@ -13,6 +13,7 @@ import io.github.astvvg.ats.application.repository.StageHistoryRepository;
 import io.github.astvvg.ats.candidate.domain.Candidate;
 import io.github.astvvg.ats.candidate.repository.CandidateRepository;
 import io.github.astvvg.ats.common.BusinessConflictException;
+import io.github.astvvg.ats.common.ConstraintViolations;
 import io.github.astvvg.ats.common.InvalidFieldException;
 import io.github.astvvg.ats.common.PageRequests;
 import io.github.astvvg.ats.common.PageResponse;
@@ -26,7 +27,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Set;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -98,7 +98,7 @@ public class ApplicationService {
         try {
             applicationRepository.saveAndFlush(application);
         } catch (DataIntegrityViolationException ex) {
-            if (violates(ex, UNIQUE_CONSTRAINT)) {
+            if (ConstraintViolations.violates(ex, UNIQUE_CONSTRAINT)) {
                 throw new BusinessConflictException(ALREADY_APPLIED);
             }
             throw ex;
@@ -176,7 +176,7 @@ public class ApplicationService {
             return applicationMapper.toResponse(application);
         }
 
-        // Truncated to the precision of TIMESTAMPTZ, as the entity does for its own timestamps.
+        // Truncated to the precision of DATETIME(6), as the entity does for its own timestamps.
         applicationRepository.updateRating(
                 id, rating, Instant.now().truncatedTo(ChronoUnit.MICROS));
         // The bulk update cleared the persistence context; load the row again.
@@ -201,15 +201,5 @@ public class ApplicationService {
 
     private static ResourceNotFoundException notFound(Long id) {
         return new ResourceNotFoundException("Application " + id + " not found");
-    }
-
-    static boolean violates(Throwable ex, String constraint) {
-        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof ConstraintViolationException violation
-                    && constraint.equalsIgnoreCase(violation.getConstraintName())) {
-                return true;
-            }
-        }
-        return false;
     }
 }

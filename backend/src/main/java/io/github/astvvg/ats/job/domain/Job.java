@@ -62,7 +62,7 @@ public class Job {
         this.createdBy = createdBy;
     }
 
-    // Truncated to the precision of TIMESTAMPTZ so responses match what is stored.
+    // Truncated to the precision of DATETIME(6) so responses match what is stored.
     private static Instant now() {
         return Instant.now().truncatedTo(ChronoUnit.MICROS);
     }

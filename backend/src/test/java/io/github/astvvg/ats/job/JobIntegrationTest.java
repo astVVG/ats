@@ -319,6 +319,15 @@ class JobIntegrationTest {
     }
 
     @Test
+    void listSearchIgnoresCaseButNotAccents() throws Exception {
+        createJob(adminAuth, "Diseño técnico " + token, null);
+
+        assertThat(titles(list(adminAuth, "q", "TÉCNICO " + token)))
+                .containsExactly("Diseño técnico " + token);
+        assertThat(titles(list(adminAuth, "q", "tecnico " + token))).isEmpty();
+    }
+
+    @Test
     void listWithStatusClosedReturnsOnlyClosedJobs() throws Exception {
         setStatus(createJob(adminAuth, token + " c", null), "CLOSED");
         createJob(adminAuth, token + " o", null);

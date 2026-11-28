@@ -6,6 +6,7 @@ import io.github.astvvg.ats.candidate.dto.CandidateRequest;
 import io.github.astvvg.ats.candidate.dto.CandidateResponse;
 import io.github.astvvg.ats.candidate.repository.CandidateRepository;
 import io.github.astvvg.ats.common.BusinessConflictException;
+import io.github.astvvg.ats.common.ConstraintViolations;
 import io.github.astvvg.ats.common.PageRequests;
 import io.github.astvvg.ats.common.PageResponse;
 import io.github.astvvg.ats.common.ResourceNotFoundException;
@@ -15,7 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Set;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -107,7 +107,7 @@ public class CandidateService {
             candidateRepository.flush();
         } catch (DataIntegrityViolationException ex) {
             // An application may be created between the check and the delete.
-            if (violates(ex, APPLICATION_CANDIDATE_CONSTRAINT)) {
+            if (ConstraintViolations.violates(ex, APPLICATION_CANDIDATE_CONSTRAINT)) {
                 throw new BusinessConflictException(HAS_APPLICATIONS);
             }
             throw ex;
@@ -177,7 +177,7 @@ public class CandidateService {
             return candidateRepository.saveAndFlush(candidate);
         } catch (DataIntegrityViolationException ex) {
             // A concurrent request may take the same email between the check and the write.
-            if (violates(ex, EMAIL_CONSTRAINT)) {
+            if (ConstraintViolations.violates(ex, EMAIL_CONSTRAINT)) {
                 throw new BusinessConflictException(EMAIL_TAKEN);
             }
             throw ex;
@@ -188,16 +188,6 @@ public class CandidateService {
         return candidateRepository
                 .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidate " + id + " not found"));
-    }
-
-    private static boolean violates(Throwable ex, String constraint) {
-        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof ConstraintViolationException violation
-                    && constraint.equalsIgnoreCase(violation.getConstraintName())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static String trimToNull(String value) {

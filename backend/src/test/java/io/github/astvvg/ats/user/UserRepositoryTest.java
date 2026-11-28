@@ -70,14 +70,14 @@ class UserRepositoryTest {
         assertThat(
                         jdbcTemplate.queryForList(
                                 "SELECT column_name FROM information_schema.columns"
-                                        + " WHERE table_name = 'users'",
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'users'",
                                 String.class))
                 .containsExactlyInAnyOrder(
                         "id", "name", "email", "password_hash", "role", "active", "created_at");
         assertThat(
                         jdbcTemplate.queryForList(
                                 "SELECT constraint_name FROM information_schema.table_constraints"
-                                        + " WHERE table_name = 'users'"
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'users'"
                                         + " AND constraint_type IN ('UNIQUE', 'CHECK')",
                                 String.class))
                 .contains("uq_users_email", "ck_users_role");
