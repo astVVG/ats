@@ -163,7 +163,7 @@ class ApplicationMoveServiceTest {
 
         assertThatThrownBy(() -> move(Stage.APPLIED, 3, Role.ADMIN))
                 .isInstanceOf(InvalidFieldException.class)
-                .hasMessage("must be between 0 and 2")
+                .hasMessage("debe estar entre 0 y 2")
                 .extracting("field")
                 .isEqualTo("position");
         verifyNoChanges();
@@ -175,7 +175,7 @@ class ApplicationMoveServiceTest {
 
         assertThatThrownBy(() -> move(Stage.OFFER, 3, Role.ADMIN))
                 .isInstanceOf(InvalidFieldException.class)
-                .hasMessage("must be between 0 and 2");
+                .hasMessage("debe estar entre 0 y 2");
         verifyNoChanges();
     }
 

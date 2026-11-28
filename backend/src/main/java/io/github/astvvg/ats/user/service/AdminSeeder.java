@@ -12,6 +12,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -19,6 +20,7 @@ import org.springframework.validation.annotation.Validated;
 
 /** Creates the initial ADMIN from ADMIN_EMAIL and ADMIN_PASSWORD if it does not exist yet. */
 @Component
+@Order(1)
 @EnableConfigurationProperties(AdminSeeder.AdminProperties.class)
 public class AdminSeeder implements ApplicationRunner {
 

@@ -9,3 +9,8 @@ spring:
 logging:
   level:
     io.github.astvvg.ats: DEBUG
+
+app:
+  demo:
+    # Password of the demo recruiter, recruiter@demo.test; without it that user is not created.
+    recruiter-password: ${DEMO_RECRUITER_PASSWORD:}
