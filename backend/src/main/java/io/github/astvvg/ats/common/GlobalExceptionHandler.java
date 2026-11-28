@@ -1,14 +1,19 @@
 package io.github.astvvg.ats.common;
 
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.exc.InputCoercionException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -26,6 +31,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -37,6 +43,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     static final String VALIDATION_TITLE = "Validation failed";
     static final String VALIDATION_DETAIL = "One or more fields are invalid";
     static final String UPLOAD_TOO_LARGE_DETAIL = "The upload exceeds the maximum size of 5 MB";
+    static final String UNREADABLE_BODY_DETAIL = "Request body is empty or is not valid JSON";
 
     public record FieldViolation(String field, String message) {}
 
@@ -87,14 +94,47 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpHeaders headers,
             HttpStatusCode status,
             WebRequest request) {
-        // Well-formed JSON with a value of the wrong type (e.g. an unknown enum constant).
-        if (ex.getCause() instanceof InvalidFormatException invalid) {
+        Throwable cause = ex.getCause();
+        // A missing body has no cause. Syntax is checked first because Jackson can report a cut
+        // document against the field it was reading.
+        if (cause == null || isSyntaxError(cause)) {
+            ProblemDetail body =
+                    ProblemDetail.forStatusAndDetail(
+                            HttpStatus.BAD_REQUEST, UNREADABLE_BODY_DETAIL);
+            body.setTitle("Bad Request");
+            return handleExceptionInternal(ex, body, headers, status, request);
+        }
+        // Well-formed JSON with a wrong value in an identifiable field.
+        if (cause instanceof JsonMappingException mapping && isWrongFieldValue(mapping)) {
+            Class<?> target =
+                    mapping instanceof MismatchedInputException mismatch
+                            ? mismatch.getTargetType()
+                            : null;
             FieldViolation violation =
-                    new FieldViolation(jsonPath(invalid), invalidValueMessage(invalid));
+                    new FieldViolation(jsonPath(mapping), invalidValueMessage(target));
             return handleExceptionInternal(
                     ex, validationProblem(List.of(violation)), headers, status, request);
         }
         return super.handleHttpMessageNotReadable(ex, headers, status, request);
+    }
+
+    // Keeps Spring's title and detail for a bad path or query value and adds which one failed.
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(
+            TypeMismatchException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        ResponseEntity<Object> response = super.handleTypeMismatch(ex, headers, status, request);
+        if (ex instanceof MethodArgumentTypeMismatchException mismatch
+                && response != null
+                && response.getBody() instanceof ProblemDetail body) {
+            FieldViolation violation =
+                    new FieldViolation(
+                            mismatch.getName(), invalidValueMessage(mismatch.getRequiredType()));
+            body.setProperty("errors", List.of(violation));
+        }
+        return response;
     }
 
     // Spring answers 413 by default; uploads over the limit are a client error like any other.
@@ -168,7 +208,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(body);
     }
 
-    private static String jsonPath(InvalidFormatException ex) {
+    private static boolean isSyntaxError(Throwable cause) {
+        return cause instanceof JsonParseException
+                || cause.getCause() instanceof JsonParseException;
+    }
+
+    private static boolean isWrongFieldValue(JsonMappingException ex) {
+        // An out-of-range number arrives wrapped instead of as a mismatched input.
+        return !ex.getPath().isEmpty()
+                && (ex instanceof MismatchedInputException
+                        || ex.getCause() instanceof InputCoercionException);
+    }
+
+    private static String jsonPath(JsonMappingException ex) {
         return ex.getPath().stream()
                 .map(ref ->
                         ref.getFieldName() != null
@@ -177,15 +229,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .collect(Collectors.joining("."));
     }
 
-    private static String invalidValueMessage(InvalidFormatException ex) {
-        Class<?> target = ex.getTargetType();
+    // Never names the Java target type: these messages go to the client.
+    private static String invalidValueMessage(Class<?> target) {
         if (target != null && target.isEnum()) {
-            return "must be one of "
+            return "debe ser uno de: "
                     + Arrays.stream(target.getEnumConstants())
                             .map(Object::toString)
                             .collect(Collectors.joining(", "));
         }
-        return "has an invalid value";
+        if (target == Long.class || target == long.class) {
+            return "debe ser un número entero válido";
+        }
+        if (target == LocalDate.class) {
+            return "debe ser una fecha válida con formato AAAA-MM-DD";
+        }
+        return "tiene un valor inválido";
     }
 
     private static String leafName(Path path) {

@@ -1,5 +1,6 @@
 package io.github.astvvg.ats.common;
 
+import java.util.List;
 import java.util.Set;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,18 +37,35 @@ public final class PageRequests {
                 sort.and(Sort.by(direction, "id")));
     }
 
-    private static Sort checkedSort(Pageable pageable, Set<String> allowed, Sort defaultSort) {
-        Sort sort = pageable.getSort();
-        if (sort.isUnsorted()) {
-            return defaultSort;
+    /** Rejects with 400 a sort property outside {@code allowed} or a page no query can reach. */
+    public static void check(Pageable pageable, Set<String> allowed) {
+        // JPA takes the first result as an int; beyond that the query fails with a 500.
+        if (pageable.getOffset() > Integer.MAX_VALUE) {
+            throw new InvalidFieldException("page", "está fuera de rango");
         }
-        for (Sort.Order order : sort) {
+        for (Sort.Order order : pageable.getSort()) {
             if (!allowed.contains(order.getProperty())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Unsupported sort property: " + order.getProperty());
+                throw unsupportedSort(order.getProperty());
             }
         }
-        return sort;
+    }
+
+    private static Sort checkedSort(Pageable pageable, Set<String> allowed, Sort defaultSort) {
+        check(pageable, allowed);
+        Sort sort = pageable.getSort();
+        return sort.isUnsorted() ? defaultSort : sort;
+    }
+
+    private static ResponseStatusException unsupportedSort(String property) {
+        ResponseStatusException ex =
+                new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Unsupported sort property: " + property);
+        ex.getBody()
+                .setProperty(
+                        "errors",
+                        List.of(
+                                new GlobalExceptionHandler.FieldViolation(
+                                        "sort", "propiedad de ordenamiento no admitida")));
+        return ex;
     }
 }

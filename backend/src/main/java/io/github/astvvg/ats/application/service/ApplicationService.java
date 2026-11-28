@@ -134,7 +134,7 @@ public class ApplicationService {
         long count = applicationRepository.countByJobIdAndStage(jobId, to);
         long max = from == to ? count - 1 : count;
         if (target > max) {
-            throw new InvalidFieldException("position", "must be between 0 and " + max);
+            throw new InvalidFieldException("position", "debe estar entre 0 y " + max);
         }
         if (from == to && current == target) {
             return applicationMapper.toResponse(application);

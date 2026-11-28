@@ -119,7 +119,7 @@ public class MetricsService {
      */
     private MetricsFilter filter(Long jobId, LocalDate from, LocalDate to) {
         if (from != null && to != null && from.isAfter(to)) {
-            throw new InvalidFieldException("from", "must not be after to");
+            throw new InvalidFieldException("from", "no debe ser posterior a to");
         }
         if (jobId != null && !jobRepository.existsById(jobId)) {
             throw new ResourceNotFoundException("Job " + jobId + " not found");

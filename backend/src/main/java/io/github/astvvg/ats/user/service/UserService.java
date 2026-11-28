@@ -2,6 +2,7 @@ package io.github.astvvg.ats.user.service;
 
 import io.github.astvvg.ats.common.BusinessConflictException;
 import io.github.astvvg.ats.common.ConstraintViolations;
+import io.github.astvvg.ats.common.PageRequests;
 import io.github.astvvg.ats.common.PageResponse;
 import io.github.astvvg.ats.common.ResourceNotFoundException;
 import io.github.astvvg.ats.user.domain.User;
@@ -12,12 +13,9 @@ import io.github.astvvg.ats.user.repository.UserRepository;
 import java.util.Set;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Transactional
@@ -42,13 +40,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> list(Pageable pageable) {
-        for (Sort.Order order : pageable.getSort()) {
-            if (!SORTABLE_PROPERTIES.contains(order.getProperty())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Unsupported sort property: " + order.getProperty());
-            }
-        }
+        PageRequests.check(pageable, SORTABLE_PROPERTIES);
         return PageResponse.from(userRepository.findAll(pageable).map(userMapper::toResponse));
     }
 

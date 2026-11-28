@@ -23,7 +23,7 @@ public @interface MaxUtf8Bytes {
 
     int value();
 
-    String message() default "must be at most {value} bytes in UTF-8";
+    String message() default "{io.github.astvvg.ats.common.validation.MaxUtf8Bytes.message}";
 
     Class<?>[] groups() default {};
 

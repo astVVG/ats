@@ -443,7 +443,7 @@ class ApplicationMoveIntegrationTest {
         ResultActions result = move(recruiterAuth, application.getId(), "APPLIED", 3);
 
         assertFieldError(result, "position");
-        result.andExpect(jsonPath("$.errors[0].message").value("must be between 0 and 2"));
+        result.andExpect(jsonPath("$.errors[0].message").value("debe estar entre 0 y 2"));
         assertThat(snapshot(job)).isEqualTo(before);
     }
 
